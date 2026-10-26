@@ -65,14 +65,25 @@ git checkout session2
 
 You will find: a PDF that is cleaned, split into overlapping chunks, turned into embeddings (OpenRouter), and stored in ChromaDB, plus a script that answers questions about the PDF using a local Ollama model. The answers come only from the PDF.
 
+### If you want to build an Advanced Multi-PDF RAG system with a Streamlit GUI
+
+Go to **`session2-assignments`**:
+
+```bash
+git checkout session2-assignments
+```
+
+You will find: an Advanced RAG system handling multiple multi-page PDFs across distinct domains. It features document-level metadata routing, score threshold filtering, dynamic document scope selection, an interactive Streamlit chat GUI, and strict grounded inference using a local Ollama model.
+
 ## Branch summary
 
-| Branch                 | Topic                                          | Needs                                  |
-|------------------------|------------------------------------------------|----------------------------------------|
-| `main`                 | This guide                                     | Nothing                                |
-| `session1`             | Environment setup and Gemini API quickstart    | Gemini API key                         |
-| `session1-assignments` | Summarization: cloud vs. local LLM             | Gemini API key, Ollama                 |
-| `session2`             | PDF embeddings, ChromaDB and question answering| OpenRouter API key, Ollama             |
+| Branch | Topic | Needs |
+| :--- | :--- | :--- |
+| `main` | This guide | Nothing |
+| `session1` | Environment setup and Gemini API quickstart | Gemini API key |
+| `session1-assignments` | Summarization: cloud vs. local LLM | Gemini API key, Ollama |
+| `session2` | PDF embeddings, ChromaDB and question answering | OpenRouter API key, Ollama |
+| `session2-assignments` | Multi-PDF Advanced RAG with Streamlit GUI & metadata routing | OpenRouter API key, Ollama |
 
 ## Suggested order
 
@@ -81,6 +92,7 @@ If you are new to the course, go through the branches in this order:
 1. `session1`: set up your tools and check that everything works.
 2. `session1-assignments`: use a cloud model and a local model on a simple task.
 3. `session2`: combine what you learned into a small RAG project.
+4. `session2-assignments`: scale to Advanced RAG with multi-document routing and an interactive web GUI.
 
 ## Seeing all branches
 
