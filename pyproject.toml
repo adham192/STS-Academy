@@ -8,16 +8,15 @@ authors = [
 ]
 requires-python = ">=3.14"
 dependencies = [
+    "chromadb>=1.5.9",
     "google-genai>=2.31.0",
+    "numpy>=2.5.4",
     "ollama>=0.6.3",
     "pandas>=3.0.6",
+    "pymupdf>=2.0",
     "python-dotenv>=1.2.4",
     "requests>=2.34.2",
 ]
 
-[project.scripts]
-sts-academy = "sts_academy:main"
-
-[build-system]
-requires = ["uv_build>=0.13.3,<0.14.0"]
-build-backend = "uv_build"
+[tool.uv]
+package = false

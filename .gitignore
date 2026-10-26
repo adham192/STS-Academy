@@ -16,3 +16,5 @@ __pycache__/
 .vscode/
 .idea/
 EOF
+
+src/session2/chroma_db/
