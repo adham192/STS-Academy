@@ -1,0 +1,693 @@
+[
+  {
+    "question": "Which container runtimes are mentioned as OCI-compliant?",
+    "reference_answers": [
+      "Docker",
+      "containerd"
+    ],
+    "required_answer_groups": [
+      [
+        "Docker"
+      ],
+      [
+        "containerd"
+      ]
+    ],
+    "source_filter": "devops_ci_cd_architecture.pdf",
+    "answerable": true,
+    "generated_answer": "The container runtimes mentioned as OCI-compliant in the context are Docker and containerd.",
+    "sources_returned": [
+      "devops_ci_cd_architecture.pdf"
+    ],
+    "correct": true,
+    "refused": false,
+    "latency_seconds": 20.983,
+    "answer_string_in_index": true,
+    "answer_rank_at_eval_k": 1,
+    "hit_at_system_k": true,
+    "hit_at_eval_k": true,
+    "reciprocal_rank": 1.0,
+    "answer_string_in_filtered_context": true,
+    "chunks_retrieved_at_eval_k": 10,
+    "chunks_passed_distance_filter": 4,
+    "top1_distance": 0.5017768144607544,
+    "answer_chunk_distance": 0.5017768144607544
+  },
+  {
+    "question": "Which Linux mechanisms provide container isolation and resource control?",
+    "reference_answers": [
+      "Linux namespaces",
+      "cgroups v2"
+    ],
+    "required_answer_groups": [
+      [
+        "Linux namespaces"
+      ],
+      [
+        "cgroups v2"
+      ]
+    ],
+    "source_filter": "devops_ci_cd_architecture.pdf",
+    "answerable": true,
+    "generated_answer": "Linux namespaces provide container isolation by isolating network interfaces, process trees, and filesystem mounts. Control groups (cgroups v2) enforce resource limits such as memory, CPU shares, and I/O throttling, preventing resource exhaustion and ensuring fair usage among containers.",
+    "sources_returned": [
+      "devops_ci_cd_architecture.pdf"
+    ],
+    "correct": true,
+    "refused": false,
+    "latency_seconds": 19.366,
+    "answer_string_in_index": true,
+    "answer_rank_at_eval_k": 1,
+    "hit_at_system_k": true,
+    "hit_at_eval_k": true,
+    "reciprocal_rank": 1.0,
+    "answer_string_in_filtered_context": true,
+    "chunks_retrieved_at_eval_k": 10,
+    "chunks_passed_distance_filter": 4,
+    "top1_distance": 0.32598960399627686,
+    "answer_chunk_distance": 0.32598960399627686
+  },
+  {
+    "question": "Which service is mentioned for internal DNS and service discovery?",
+    "reference_answers": [
+      "CoreDNS"
+    ],
+    "required_answer_groups": [
+      [
+        "CoreDNS"
+      ]
+    ],
+    "source_filter": "devops_ci_cd_architecture.pdf",
+    "answerable": true,
+    "generated_answer": "CoreDNS is mentioned for internal DNS and service discovery.",
+    "sources_returned": [
+      "devops_ci_cd_architecture.pdf"
+    ],
+    "correct": true,
+    "refused": false,
+    "latency_seconds": 10.661,
+    "answer_string_in_index": true,
+    "answer_rank_at_eval_k": 1,
+    "hit_at_system_k": true,
+    "hit_at_eval_k": true,
+    "reciprocal_rank": 1.0,
+    "answer_string_in_filtered_context": true,
+    "chunks_retrieved_at_eval_k": 10,
+    "chunks_passed_distance_filter": 4,
+    "top1_distance": 0.5119813680648804,
+    "answer_chunk_distance": 0.5119813680648804
+  },
+  {
+    "question": "Which tools are mentioned for GitOps reconciliation?",
+    "reference_answers": [
+      "ArgoCD",
+      "Flux"
+    ],
+    "required_answer_groups": [
+      [
+        "ArgoCD",
+        "Argo CD"
+      ],
+      [
+        "Flux"
+      ]
+    ],
+    "source_filter": "devops_ci_cd_architecture.pdf",
+    "answerable": true,
+    "generated_answer": "For GitOps reconciliation, the context mentions ArgoCD and Flux.",
+    "sources_returned": [
+      "devops_ci_cd_architecture.pdf"
+    ],
+    "correct": true,
+    "refused": false,
+    "latency_seconds": 13.17,
+    "answer_string_in_index": true,
+    "answer_rank_at_eval_k": 2,
+    "hit_at_system_k": true,
+    "hit_at_eval_k": true,
+    "reciprocal_rank": 0.5,
+    "answer_string_in_filtered_context": true,
+    "chunks_retrieved_at_eval_k": 10,
+    "chunks_passed_distance_filter": 4,
+    "top1_distance": 0.42039841413497925,
+    "answer_chunk_distance": 0.4267192482948303
+  },
+  {
+    "question": "Which tool is mentioned for container vulnerability scanning?",
+    "reference_answers": [
+      "Trivy"
+    ],
+    "required_answer_groups": [
+      [
+        "Trivy"
+      ]
+    ],
+    "source_filter": "devops_ci_cd_architecture.pdf",
+    "answerable": true,
+    "generated_answer": "Trivy is mentioned for container vulnerability scanning.",
+    "sources_returned": [
+      "devops_ci_cd_architecture.pdf"
+    ],
+    "correct": true,
+    "refused": false,
+    "latency_seconds": 14.644,
+    "answer_string_in_index": true,
+    "answer_rank_at_eval_k": 1,
+    "hit_at_system_k": true,
+    "hit_at_eval_k": true,
+    "reciprocal_rank": 1.0,
+    "answer_string_in_filtered_context": true,
+    "chunks_retrieved_at_eval_k": 10,
+    "chunks_passed_distance_filter": 4,
+    "top1_distance": 0.6256467700004578,
+    "answer_chunk_distance": 0.6256467700004578
+  },
+  {
+    "question": "What does the Horizontal Pod Autoscaler monitor?",
+    "reference_answers": [
+      "CPU utilization",
+      "request latencies"
+    ],
+    "required_answer_groups": [
+      [
+        "CPU utilization",
+        "CPU usage",
+        "CPU metrics"
+      ],
+      [
+        "request latencies",
+        "request latency"
+      ]
+    ],
+    "source_filter": "devops_ci_cd_architecture.pdf",
+    "answerable": true,
+    "generated_answer": "Horizontal Pod Autoscalers (HPA) monitor resource saturation metrics such as CPU utilization and custom Prometheus request latencies.",
+    "sources_returned": [
+      "devops_ci_cd_architecture.pdf"
+    ],
+    "correct": true,
+    "refused": false,
+    "latency_seconds": 16.842,
+    "answer_string_in_index": true,
+    "answer_rank_at_eval_k": 1,
+    "hit_at_system_k": true,
+    "hit_at_eval_k": true,
+    "reciprocal_rank": 1.0,
+    "answer_string_in_filtered_context": true,
+    "chunks_retrieved_at_eval_k": 10,
+    "chunks_passed_distance_filter": 4,
+    "top1_distance": 0.3629170060157776,
+    "answer_chunk_distance": 0.3629170060157776
+  },
+  {
+    "question": "Which tool dynamically provisions cloud instances?",
+    "reference_answers": [
+      "Karpenter"
+    ],
+    "required_answer_groups": [
+      [
+        "Karpenter"
+      ]
+    ],
+    "source_filter": "devops_ci_cd_architecture.pdf",
+    "answerable": true,
+    "generated_answer": "Cluster autoscalers, like Karpenter, dynamically provision cloud instances by evaluating spot versus on-demand instance pricing.",
+    "sources_returned": [
+      "devops_ci_cd_architecture.pdf"
+    ],
+    "correct": true,
+    "refused": false,
+    "latency_seconds": 13.382,
+    "answer_string_in_index": true,
+    "answer_rank_at_eval_k": 1,
+    "hit_at_system_k": true,
+    "hit_at_eval_k": true,
+    "reciprocal_rank": 1.0,
+    "answer_string_in_filtered_context": true,
+    "chunks_retrieved_at_eval_k": 10,
+    "chunks_passed_distance_filter": 4,
+    "top1_distance": 0.4277340769767761,
+    "answer_chunk_distance": 0.4277340769767761
+  },
+  {
+    "question": "What are the three pillars of distributed observability?",
+    "reference_answers": [
+      "metrics",
+      "traces",
+      "logs"
+    ],
+    "required_answer_groups": [
+      [
+        "metrics"
+      ],
+      [
+        "traces"
+      ],
+      [
+        "logs"
+      ]
+    ],
+    "source_filter": "devops_ci_cd_architecture.pdf",
+    "answerable": true,
+    "generated_answer": "The three pillars of distributed observability, as mentioned in the context, are:\n1. Metrics\n2. Distributed traces\n3. Aggregated logs",
+    "sources_returned": [
+      "devops_ci_cd_architecture.pdf"
+    ],
+    "correct": true,
+    "refused": false,
+    "latency_seconds": 13.685,
+    "answer_string_in_index": true,
+    "answer_rank_at_eval_k": 1,
+    "hit_at_system_k": true,
+    "hit_at_eval_k": true,
+    "reciprocal_rank": 1.0,
+    "answer_string_in_filtered_context": true,
+    "chunks_retrieved_at_eval_k": 10,
+    "chunks_passed_distance_filter": 4,
+    "top1_distance": 0.4750828146934509,
+    "answer_chunk_distance": 0.4750828146934509
+  },
+  {
+    "question": "What do RTO and RPO stand for?",
+    "reference_answers": [
+      "Recovery Time Objective",
+      "Recovery Point Objective"
+    ],
+    "required_answer_groups": [
+      [
+        "Recovery Time Objective",
+        "RTO"
+      ],
+      [
+        "Recovery Point Objective",
+        "RPO"
+      ]
+    ],
+    "source_filter": "devops_ci_cd_architecture.pdf",
+    "answerable": true,
+    "generated_answer": "RTO stands for Recovery Time Objective, and RPO stands for Recovery Point Objective. These metrics are used in disaster recovery planning to categorize organizational risk.",
+    "sources_returned": [
+      "devops_ci_cd_architecture.pdf"
+    ],
+    "correct": true,
+    "refused": false,
+    "latency_seconds": 13.126,
+    "answer_string_in_index": true,
+    "answer_rank_at_eval_k": 4,
+    "hit_at_system_k": true,
+    "hit_at_eval_k": true,
+    "reciprocal_rank": 0.25,
+    "answer_string_in_filtered_context": true,
+    "chunks_retrieved_at_eval_k": 10,
+    "chunks_passed_distance_filter": 4,
+    "top1_distance": 0.6638443470001221,
+    "answer_chunk_distance": 0.7022846937179565
+  },
+  {
+    "question": "Which hormones regulate skeletal growth according to the document?",
+    "reference_answers": [
+      "Growth Hormone",
+      "IGF-1",
+      "thyroid hormones",
+      "sex steroids"
+    ],
+    "required_answer_groups": [
+      [
+        "Growth Hormone",
+        "GH"
+      ],
+      [
+        "IGF-1",
+        "IGF1"
+      ],
+      [
+        "thyroid hormones",
+        "thyroid hormone"
+      ],
+      [
+        "sex steroids",
+        "sex steroid"
+      ]
+    ],
+    "source_filter": "pediatric_bone_age_clinical.pdf",
+    "answerable": true,
+    "generated_answer": "The hormones that regulate skeletal growth according to the document are:\n\n1. Growth Hormone (GH) secreted by the anterior pituitary, which stimulates the production of Insulin-like Growth Factor 1 (IGF-1) in the liver.\n2. Thyroid hormones (T3 and T4).\n3. Sex steroids.",
+    "sources_returned": [
+      "pediatric_bone_age_clinical.pdf"
+    ],
+    "correct": true,
+    "refused": false,
+    "latency_seconds": 21.152,
+    "answer_string_in_index": true,
+    "answer_rank_at_eval_k": 1,
+    "hit_at_system_k": true,
+    "hit_at_eval_k": true,
+    "reciprocal_rank": 1.0,
+    "answer_string_in_filtered_context": true,
+    "chunks_retrieved_at_eval_k": 10,
+    "chunks_passed_distance_filter": 4,
+    "top1_distance": 0.34754878282546997,
+    "answer_chunk_distance": 0.34754878282546997
+  },
+  {
+    "question": "Which hand and radiographic view are used for standard skeletal maturity evaluation?",
+    "reference_answers": [
+      "left hand",
+      "posterior-anterior",
+      "PA radiograph"
+    ],
+    "required_answer_groups": [
+      [
+        "left hand"
+      ],
+      [
+        "posterior-anterior",
+        "PA view",
+        "PA radiograph"
+      ]
+    ],
+    "source_filter": "pediatric_bone_age_clinical.pdf",
+    "answerable": true,
+    "generated_answer": "For standard skeletal maturity evaluation, a single posterior-anterior (PA) radiograph of the left hand and wrist is used.",
+    "sources_returned": [
+      "pediatric_bone_age_clinical.pdf"
+    ],
+    "correct": true,
+    "refused": false,
+    "latency_seconds": 16.59,
+    "answer_string_in_index": true,
+    "answer_rank_at_eval_k": 1,
+    "hit_at_system_k": true,
+    "hit_at_eval_k": true,
+    "reciprocal_rank": 1.0,
+    "answer_string_in_filtered_context": true,
+    "chunks_retrieved_at_eval_k": 10,
+    "chunks_passed_distance_filter": 4,
+    "top1_distance": 0.24733513593673706,
+    "answer_chunk_distance": 0.24733513593673706
+  },
+  {
+    "question": "How many carpal bones are mentioned?",
+    "reference_answers": [
+      "Eight",
+      "8"
+    ],
+    "required_answer_groups": [
+      [
+        "Eight",
+        "8"
+      ]
+    ],
+    "source_filter": "pediatric_bone_age_clinical.pdf",
+    "answerable": true,
+    "generated_answer": "The text mentions that there are eight distinct carpal bones in the wrist that ossify in a predictable chronological order during infancy and early childhood.",
+    "sources_returned": [
+      "pediatric_bone_age_clinical.pdf"
+    ],
+    "correct": true,
+    "refused": false,
+    "latency_seconds": 16.649,
+    "answer_string_in_index": true,
+    "answer_rank_at_eval_k": 1,
+    "hit_at_system_k": true,
+    "hit_at_eval_k": true,
+    "reciprocal_rank": 1.0,
+    "answer_string_in_filtered_context": true,
+    "chunks_retrieved_at_eval_k": 10,
+    "chunks_passed_distance_filter": 4,
+    "top1_distance": 0.4508105516433716,
+    "answer_chunk_distance": 0.4508105516433716
+  },
+  {
+    "question": "What are the two primary clinical bone-age assessment methodologies?",
+    "reference_answers": [
+      "Greulich-Pyle",
+      "Tanner-Whitehouse"
+    ],
+    "required_answer_groups": [
+      [
+        "Greulich-Pyle",
+        "Greulich Pyle"
+      ],
+      [
+        "Tanner-Whitehouse",
+        "Tanner Whitehouse"
+      ]
+    ],
+    "source_filter": "pediatric_bone_age_clinical.pdf",
+    "answerable": true,
+    "generated_answer": "The two primary clinical bone-age assessment methodologies are the Greulich-Pyle method and the Tanner-Whitehouse method (TW2/TW3). The Greulich-Pyle method is more commonly used in high-volume pediatric clinics for routine outpatient screenings due to its speed and familiarity, while the Tanner-Whitehouse method provides a more objective, point-based approach with a 20-bone total maturity score but is slower to perform.",
+    "sources_returned": [
+      "pediatric_bone_age_clinical.pdf"
+    ],
+    "correct": true,
+    "refused": false,
+    "latency_seconds": 22.089,
+    "answer_string_in_index": true,
+    "answer_rank_at_eval_k": 3,
+    "hit_at_system_k": true,
+    "hit_at_eval_k": true,
+    "reciprocal_rank": 0.3333333333333333,
+    "answer_string_in_filtered_context": true,
+    "chunks_retrieved_at_eval_k": 10,
+    "chunks_passed_distance_filter": 4,
+    "top1_distance": 0.4242779016494751,
+    "answer_chunk_distance": 0.4543313980102539
+  },
+  {
+    "question": "How many anatomical regions of interest does Tanner-Whitehouse analyze?",
+    "reference_answers": [
+      "twenty",
+      "20"
+    ],
+    "required_answer_groups": [
+      [
+        "twenty",
+        "20"
+      ]
+    ],
+    "source_filter": "pediatric_bone_age_clinical.pdf",
+    "answerable": true,
+    "generated_answer": "Tanner-Whitehouse analyzes twenty distinct anatomical regions of interest (ROIs).",
+    "sources_returned": [
+      "pediatric_bone_age_clinical.pdf"
+    ],
+    "correct": true,
+    "refused": false,
+    "latency_seconds": 15.933,
+    "answer_string_in_index": true,
+    "answer_rank_at_eval_k": 1,
+    "hit_at_system_k": true,
+    "hit_at_eval_k": true,
+    "reciprocal_rank": 1.0,
+    "answer_string_in_filtered_context": true,
+    "chunks_retrieved_at_eval_k": 10,
+    "chunks_passed_distance_filter": 4,
+    "top1_distance": 0.39917683601379395,
+    "answer_chunk_distance": 0.39917683601379395
+  },
+  {
+    "question": "Which explainability method generates visual heatmaps?",
+    "reference_answers": [
+      "Grad-CAM",
+      "Gradient-weighted Class Activation Mapping",
+      "Gradient weighted Class Activation Mapping"
+    ],
+    "required_answer_groups": [
+      [
+        "Grad-CAM",
+        "Gradient-weighted Class Activation Mapping",
+        "Gradient weighted Class Activation Mapping"
+      ]
+    ],
+    "source_filter": "pediatric_bone_age_clinical.pdf",
+    "answerable": true,
+    "generated_answer": "The explainability method that generates visual heatmaps is Gradient-weighted Class Activation Mapping (Grad-CAM).",
+    "sources_returned": [
+      "pediatric_bone_age_clinical.pdf"
+    ],
+    "correct": true,
+    "refused": false,
+    "latency_seconds": 14.693,
+    "answer_string_in_index": true,
+    "answer_rank_at_eval_k": 1,
+    "hit_at_system_k": true,
+    "hit_at_eval_k": true,
+    "reciprocal_rank": 1.0,
+    "answer_string_in_filtered_context": true,
+    "chunks_retrieved_at_eval_k": 10,
+    "chunks_passed_distance_filter": 4,
+    "top1_distance": 0.5956295728683472,
+    "answer_chunk_distance": 0.5956295728683472
+  },
+  {
+    "question": "Which systems are mentioned for hospital radiology integration?",
+    "reference_answers": [
+      "Hospital Information Systems",
+      "HIS",
+      "PACS"
+    ],
+    "required_answer_groups": [
+      [
+        "Hospital Information Systems",
+        "HIS"
+      ],
+      [
+        "PACS"
+      ]
+    ],
+    "source_filter": "pediatric_bone_age_clinical.pdf",
+    "answerable": true,
+    "generated_answer": "The systems mentioned for hospital radiology integration are Hospital Information Systems (HIS) and Picture Archiving and Communication Systems (PACS).",
+    "sources_returned": [
+      "pediatric_bone_age_clinical.pdf"
+    ],
+    "correct": true,
+    "refused": false,
+    "latency_seconds": 14.755,
+    "answer_string_in_index": true,
+    "answer_rank_at_eval_k": 1,
+    "hit_at_system_k": true,
+    "hit_at_eval_k": true,
+    "reciprocal_rank": 1.0,
+    "answer_string_in_filtered_context": true,
+    "chunks_retrieved_at_eval_k": 10,
+    "chunks_passed_distance_filter": 4,
+    "top1_distance": 0.38018786907196045,
+    "answer_chunk_distance": 0.38018786907196045
+  },
+  {
+    "question": "Which tool is mentioned for metrics monitoring?",
+    "reference_answers": [
+      "Prometheus"
+    ],
+    "required_answer_groups": [
+      [
+        "Prometheus"
+      ]
+    ],
+    "source_filter": "All",
+    "answerable": true,
+    "generated_answer": "Prometheus is the tool mentioned for metrics monitoring.",
+    "sources_returned": [
+      "devops_ci_cd_architecture.pdf"
+    ],
+    "correct": true,
+    "refused": false,
+    "latency_seconds": 15.385,
+    "answer_string_in_index": true,
+    "answer_rank_at_eval_k": 1,
+    "hit_at_system_k": true,
+    "hit_at_eval_k": true,
+    "reciprocal_rank": 1.0,
+    "answer_string_in_filtered_context": true,
+    "chunks_retrieved_at_eval_k": 10,
+    "chunks_passed_distance_filter": 4,
+    "top1_distance": 0.45615315437316895,
+    "answer_chunk_distance": 0.45615315437316895
+  },
+  {
+    "question": "Which explainability method is mentioned in the supplied documents?",
+    "reference_answers": [
+      "Grad-CAM",
+      "Gradient-weighted Class Activation Mapping"
+    ],
+    "required_answer_groups": [
+      [
+        "Grad-CAM",
+        "Gradient-weighted Class Activation Mapping",
+        "Gradient weighted Class Activation Mapping"
+      ]
+    ],
+    "source_filter": "All",
+    "answerable": true,
+    "generated_answer": "The explainability method mentioned in the supplied documents is Gradient-weighted Class Activation Mapping (Grad-CAM).",
+    "sources_returned": [
+      "devops_ci_cd_architecture.pdf",
+      "pediatric_bone_age_clinical.pdf"
+    ],
+    "correct": true,
+    "refused": false,
+    "latency_seconds": 14.4,
+    "answer_string_in_index": true,
+    "answer_rank_at_eval_k": 2,
+    "hit_at_system_k": true,
+    "hit_at_eval_k": true,
+    "reciprocal_rank": 0.5,
+    "answer_string_in_filtered_context": true,
+    "chunks_retrieved_at_eval_k": 10,
+    "chunks_passed_distance_filter": 4,
+    "top1_distance": 0.6373388767242432,
+    "answer_chunk_distance": 0.663888156414032
+  },
+  {
+    "question": "Who won the football World Cup in 2010?",
+    "reference_answers": [],
+    "required_answer_groups": [],
+    "source_filter": "All",
+    "answerable": false,
+    "generated_answer": "I could not find this in the PDF.",
+    "sources_returned": [],
+    "correct": true,
+    "refused": true,
+    "latency_seconds": 0.791,
+    "answer_string_in_index": null,
+    "answer_rank_at_eval_k": 0,
+    "hit_at_system_k": false,
+    "hit_at_eval_k": false,
+    "reciprocal_rank": 0.0,
+    "answer_string_in_filtered_context": null,
+    "chunks_retrieved_at_eval_k": 10,
+    "chunks_passed_distance_filter": 0,
+    "top1_distance": 0.9040946960449219,
+    "answer_chunk_distance": null
+  },
+  {
+    "question": "What is the current price of an Amazon EC2 instance?",
+    "reference_answers": [],
+    "required_answer_groups": [],
+    "source_filter": "All",
+    "answerable": false,
+    "generated_answer": "I could not find this in the PDF.",
+    "sources_returned": [
+      "devops_ci_cd_architecture.pdf"
+    ],
+    "correct": true,
+    "refused": true,
+    "latency_seconds": 11.252,
+    "answer_string_in_index": null,
+    "answer_rank_at_eval_k": 0,
+    "hit_at_system_k": false,
+    "hit_at_eval_k": false,
+    "reciprocal_rank": 0.0,
+    "answer_string_in_filtered_context": null,
+    "chunks_retrieved_at_eval_k": 10,
+    "chunks_passed_distance_filter": 4,
+    "top1_distance": 0.694826602935791,
+    "answer_chunk_distance": null
+  },
+  {
+    "question": "What hospital treated the pediatric patient?",
+    "reference_answers": [],
+    "required_answer_groups": [],
+    "source_filter": "All",
+    "answerable": false,
+    "generated_answer": "I could not find this in the PDF.",
+    "sources_returned": [
+      "pediatric_bone_age_clinical.pdf"
+    ],
+    "correct": true,
+    "refused": true,
+    "latency_seconds": 14.405,
+    "answer_string_in_index": null,
+    "answer_rank_at_eval_k": 0,
+    "hit_at_system_k": false,
+    "hit_at_eval_k": false,
+    "reciprocal_rank": 0.0,
+    "answer_string_in_filtered_context": null,
+    "chunks_retrieved_at_eval_k": 10,
+    "chunks_passed_distance_filter": 4,
+    "top1_distance": 0.6590002775192261,
+    "answer_chunk_distance": null
+  }
+]
