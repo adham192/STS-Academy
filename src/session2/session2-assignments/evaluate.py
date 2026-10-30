@@ -238,15 +238,15 @@ def evaluate_case(case, collection, corpus):
         "answerable": answerable,
         "generated_answer": answer,
         "sources_returned": sources,
-        "correct": correct,
-        "refused": refused,
+        "correct": correct, # The final result the user cares about, but it is not enough to just look at this.
+        "refused": refused, # The model refused to answer, which is correct for unanswerable questions.
         "latency_seconds": round(latency, 3),
-        "answer_string_in_index": in_index,
+        "answer_string_in_index": in_index,  # it separates never indexed from retrieved badly.
         "answer_rank_at_eval_k": rank,
-        "hit_at_system_k": bool(answerable and 0 < rank <= SYSTEM_K),
-        "hit_at_eval_k": bool(answerable and rank > 0),
-        "reciprocal_rank": 1 / rank if rank else 0.0,
-        "answer_string_in_filtered_context": in_filtered_context,
+        "hit_at_system_k": bool(answerable and 0 < rank <= SYSTEM_K), # it checks if the right chunks reached the model.
+        "hit_at_eval_k": bool(answerable and rank > 0), # we compare it to the hit_at_system_k if the gap is big then raising n_results is useful.
+        "reciprocal_rank": 1 / rank if rank else 0.0, # checks how high the answer chunk ranks.
+        "answer_string_in_filtered_context": in_filtered_context, # it checks if the right chunks survived the distance filter.
         "chunks_retrieved_at_eval_k": len(retrieved),
         "chunks_passed_distance_filter": len(filtered),
         "top1_distance": retrieved[0]["distance"] if retrieved else None,
