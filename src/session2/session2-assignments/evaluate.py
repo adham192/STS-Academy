@@ -113,6 +113,7 @@ def required_groups(case):
 
 
 def group_matches(text, alternatives):
+    """Return True if any alternative phrase in the group is present in the text."""
     normalized_text = f" {normalize(text)} "
     for phrase in alternatives:
         normalized_phrase = normalize(phrase)
@@ -167,6 +168,7 @@ def ensure_index(collection):
 
 
 def load_corpus(collection):
+    """Returns all indexed chunks grouped by PDF."""
     data = collection.get(include=["documents", "metadatas"])
     corpus = {}
     for document, metadata in zip(data.get("documents") or [],
@@ -176,6 +178,7 @@ def load_corpus(collection):
 
 
 def retrieve_top(collection, question, source, k):
+    """Embeds the question and retrieves the top k chunks with their distances"""
     vector = get_embeddings([question])[0]
     where = None if source == "All" else {"source": source}
     result = collection.query(
