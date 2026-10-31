@@ -1,0 +1,23 @@
+[project]
+name = "sts-academy"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "adham192", email = "adhamkarate@gmail.com" }
+]
+requires-python = ">=3.14"
+dependencies = [
+    "chromadb>=1.5.9",
+    "google-genai>=2.31.0",
+    "numpy>=2.5.4",
+    "ollama>=0.6.3",
+    "pandas>=3.0.6",
+    "pymupdf>=2.0",
+    "python-dotenv>=1.2.4",
+    "requests>=2.34.2",
+    "scikit-learn>=1.9.1",
+]
+
+[tool.uv]
+package = false
