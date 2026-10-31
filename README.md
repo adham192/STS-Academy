@@ -161,8 +161,14 @@ cd src/session3
 uv run python scripts/Chat-App/Launch.py
 ```
 
+Or start Streamlit directly:
+
+```bash
+uv run streamlit run scripts/Chat-App/app.py
+```
+
 - Open the local URL displayed in your terminal (typically `http://localhost:8501`).
-- Use `--port 8502` to change the port, or `--headless` to skip opening a browser tab.
+- With `Launch.py`, use `--port 8502` to change the port, or `--headless` to skip opening a browser tab. With Streamlit directly, use `--server.port 8502`.
 - Upload PDFs in the sidebar and click **Add to knowledge base**.
 - Ask questions in the chat box. Answers show the source documents underneath.
 - Open **Settings** to change the number of chunks and drafts.
