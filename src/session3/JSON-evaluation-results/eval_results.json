@@ -1,0 +1,113 @@
+[
+  {
+    "question": "What is the name of the model used for virtual try-on?",
+    "ground_truth": "LaDI-VTON",
+    "spec_answer": "The virtual try-on model used is LaDI-VTON.",
+    "baseline_answer": "The LaDI-VTON model with Dress Code weights is used for virtual try-on.",
+    "draft_answers": [
+      "The LaDI-VTON model with Dress Code weights is used for virtual try-on.",
+      "The virtual try-on model used is LaDI-VTON.",
+      "LaDI-VTON (Model 3) is the model used for virtual try-on."
+    ],
+    "scores": [
+      8.0,
+      10.0,
+      9.0
+    ],
+    "verifier_evidence": "",
+    "retrieval_hit": true,
+    "reciprocal_rank": 0.3333333333333333,
+    "subset_hit": true,
+    "oracle": true,
+    "spec_correct": true,
+    "baseline_correct": true,
+    "spec_latency": 138.17085933685303,
+    "baseline_latency": 76.02782773971558,
+    "failure_stage": null,
+    "status": "ok"
+  },
+  {
+    "question": "Which database is used?",
+    "ground_truth": [
+      "DynamoDB",
+      "Amazon DynamoDB"
+    ],
+    "spec_answer": "Amazon DynamoDB is used as the database.",
+    "baseline_answer": "Amazon DynamoDB is used as the database.",
+    "draft_answers": [
+      "Amazon DynamoDB is used as the database.",
+      "Amazon DynamoDB is used as the database.",
+      "Amazon DynamoDB is used as the database."
+    ],
+    "scores": [
+      10.0,
+      8.0,
+      9.0
+    ],
+    "verifier_evidence": "",
+    "retrieval_hit": true,
+    "reciprocal_rank": 1.0,
+    "subset_hit": true,
+    "oracle": true,
+    "spec_correct": true,
+    "baseline_correct": true,
+    "spec_latency": 109.71657037734985,
+    "baseline_latency": 54.004512548446655,
+    "failure_stage": null,
+    "status": "ok"
+  },
+  {
+    "question": "Which service handles user authentication?",
+    "ground_truth": "Cognito",
+    "spec_answer": "Amazon Cognito handles user authentication.",
+    "baseline_answer": "Amazon Cognito handles user authentication.",
+    "draft_answers": [
+      "Amazon Cognito handles user authentication.",
+      "Cognito handles user authentication.",
+      "Cognito handles user authentication."
+    ],
+    "scores": [
+      10.0,
+      6.0,
+      6.0
+    ],
+    "verifier_evidence": "",
+    "retrieval_hit": true,
+    "reciprocal_rank": 0.5,
+    "subset_hit": true,
+    "oracle": true,
+    "spec_correct": true,
+    "baseline_correct": true,
+    "spec_latency": 109.73331499099731,
+    "baseline_latency": 32.24770736694336,
+    "failure_stage": null,
+    "status": "ok"
+  },
+  {
+    "question": "Which tool is used to define the AWS resources as code?",
+    "ground_truth": "Terraform",
+    "spec_answer": "Terraform is used to define the AWS resources as code.",
+    "baseline_answer": "Terraform is used to define the AWS resources as code.",
+    "draft_answers": [
+      "Terraform is used to define the AWS resources as code.",
+      "Terraform is used to define the AWS resources as code.",
+      "Terraform is used to define the AWS resources as code."
+    ],
+    "scores": [
+      8.0,
+      6.0,
+      4.0
+    ],
+    "verifier_evidence": "",
+    "retrieval_hit": true,
+    "reciprocal_rank": 0.5,
+    "subset_hit": true,
+    "oracle": true,
+    "spec_correct": true,
+    "baseline_correct": true,
+    "spec_latency": 128.52216172218323,
+    "baseline_latency": 54.0875985622406,
+    "failure_stage": null,
+    "status": "ok"
+  }
+]

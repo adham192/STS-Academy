@@ -1,0 +1,7 @@
+[
+  {"question": "What is the name of the model used for virtual try-on?", "ground_truth": "LaDI-VTON"},
+  {"question": "Which database is used?", "ground_truth": ["DynamoDB" , "Amazon DynamoDB"]},
+
+  {"question": "Which service handles user authentication?", "ground_truth": "Cognito"},
+  {"question": "Which tool is used to define the AWS resources as code?", "ground_truth": "Terraform"}
+]

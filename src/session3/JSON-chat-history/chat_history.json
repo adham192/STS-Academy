@@ -1,0 +1,38 @@
+{
+  "d72be548cddc": {
+    "title": "what is RAG?",
+    "created": "2026-10-31T14:55:47",
+    "updated": "2026-10-31T14:58:00",
+    "messages": [
+      {
+        "role": "user",
+        "content": "what is RAG?"
+      },
+      {
+        "role": "assistant",
+        "content": "RAG is a framework that combines the generative capabilities of large language models with external knowledge retrieved from a separate database to enhance the accuracy and relevance of responses.",
+        "sources": [
+          "s12599-025-00945-3.pdf"
+        ]
+      }
+    ]
+  },
+  "6ce0617cec82": {
+    "title": "what is the model used for virtual try-on?",
+    "created": "2026-10-31T20:57:14",
+    "updated": "2026-10-31T20:59:11",
+    "messages": [
+      {
+        "role": "user",
+        "content": "what is the model used for virtual try-on?"
+      },
+      {
+        "role": "assistant",
+        "content": "The model used for virtual try-on is the pre-trained LaDI-VTON model with Dress Code weights.",
+        "sources": [
+          "FitStyle_AI_Documentation_final (1).pdf"
+        ]
+      }
+    ]
+  }
+}
