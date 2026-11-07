@@ -20,3 +20,4 @@ EOF
 src/session2/chroma_db/
 src/session3/chroma_db/
 src/session3/app.log
+src/session3/pdfs/large_pdf.pdf

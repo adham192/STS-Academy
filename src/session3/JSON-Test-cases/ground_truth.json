@@ -1,7 +1,256 @@
 [
-  {"question": "What is the name of the model used for virtual try-on?", "ground_truth": "LaDI-VTON"},
-  {"question": "Which database is used?", "ground_truth": ["DynamoDB" , "Amazon DynamoDB"]},
-
-  {"question": "Which service handles user authentication?", "ground_truth": "Cognito"},
-  {"question": "Which tool is used to define the AWS resources as code?", "ground_truth": "Terraform"}
+  {
+    "id": "E01",
+    "level": "easy",
+    "topic": "Structure of government",
+    "question": "Which three broad governmental powers does the Constitution distribute among the three branches of the federal government?",
+    "ground_truth": "legislative, executive, and judicial powers",
+    "source": "large_pdf.pdf",
+    "difficulty_rationale": "Direct identification of a foundational constitutional structure.",
+    "required_concepts": [
+      [
+        "legislative"
+      ],
+      [
+        "executive"
+      ],
+      [
+        "judicial"
+      ]
+    ]
+  },
+  {
+    "id": "E02",
+    "level": "easy",
+    "topic": "Article I",
+    "question": "Which two chambers make up the United States Congress under Article I?",
+    "ground_truth": "Senate and House of Representatives",
+    "source": "large_pdf.pdf",
+    "difficulty_rationale": "Direct factual retrieval from Article I, Section 1.",
+    "required_concepts": [
+      [
+        "Senate"
+      ],
+      [
+        "House of Representatives"
+      ]
+    ]
+  },
+  {
+    "id": "E03",
+    "level": "easy",
+    "topic": "Fourteenth Amendment",
+    "question": "Under Section 1 of the Fourteenth Amendment, what does the first sentence establish about people born or naturalized in the United States and subject to its jurisdiction?",
+    "ground_truth": "citizens of the United States and of the State wherein they reside",
+    "source": "large_pdf.pdf",
+    "difficulty_rationale": "Requires locating and restating one explicit constitutional guarantee.",
+    "required_concepts": [
+      [
+        "citizens of the United States",
+        "United States citizens"
+      ],
+      [
+        "State wherein they reside",
+        "state where they reside",
+        "citizens of the state where they live"
+      ]
+    ]
+  },
+  {
+    "id": "E04",
+    "level": "easy",
+    "topic": "Article I, Necessary and Proper Clause",
+    "question": "What is the name of the Article I, Section 8 clause that authorizes Congress to make laws for carrying its enumerated powers into execution?",
+    "ground_truth": "Necessary and Proper Clause",
+    "source": "large_pdf.pdf",
+    "difficulty_rationale": "Direct identification of a named constitutional clause.",
+    "required_concepts": [
+      [
+        "Necessary and Proper Clause"
+      ]
+    ]
+  },
+  {
+    "id": "M01",
+    "level": "medium",
+    "topic": "McCulloch v. Maryland",
+    "question": "In McCulloch v. Maryland, did the Supreme Court interpret the word 'necessary' in the Necessary and Proper Clause to mean absolutely indispensable? What interpretation did it adopt instead?",
+    "ground_truth": "conducive to or needful",
+    "source": "large_pdf.pdf",
+    "difficulty_rationale": "Requires distinguishing the Court's adopted interpretation from a rejected narrow interpretation.",
+    "required_concepts": [
+      [
+        "conducive to",
+        "needful"
+      ],
+      [
+        "rejected a narrow interpretation",
+        "not absolutely indispensable",
+        "not indispensable",
+        "rather than indispensable"
+      ]
+    ]
+  },
+  {
+    "id": "M02",
+    "level": "medium",
+    "topic": "Commerce Clause",
+    "question": "What are the three broad categories of activity that Congress may regulate under its Commerce Clause power?",
+    "ground_truth": "channels of interstate commerce; instrumentalities of interstate commerce or persons or things in interstate commerce; and activities that substantially affect interstate commerce",
+    "source": "large_pdf.pdf",
+    "difficulty_rationale": "Requires retrieving and combining three related categories rather than one isolated fact.",
+    "required_concepts": [
+      [
+        "channels of interstate commerce"
+      ],
+      [
+        "instrumentalities of interstate commerce",
+        "persons or things in interstate commerce"
+      ],
+      [
+        "substantially affect interstate commerce",
+        "substantial relation to interstate commerce"
+      ]
+    ]
+  },
+  {
+    "id": "M03",
+    "level": "medium",
+    "topic": "Tenth Amendment",
+    "question": "According to the Tenth Amendment, where do powers go when they are not delegated to the United States by the Constitution and are not prohibited to the States?",
+    "ground_truth": "reserved to the States respectively, or to the people",
+    "source": "large_pdf.pdf",
+    "difficulty_rationale": "Requires identifying the constitutional allocation rule and its two recipients.",
+    "required_concepts": [
+      [
+        "States respectively",
+        "States"
+      ],
+      [
+        "people"
+      ]
+    ]
+  },
+  {
+    "id": "M04",
+    "level": "medium",
+    "topic": "Fourteenth Amendment, procedural due process",
+    "question": "When a protected interest is at stake, what general procedural safeguards does the Fourteenth Amendment's Due Process Clause require, according to the Constitution Annotated's overview?",
+    "ground_truth": "procedures must be evenhanded so individuals are not subjected to the arbitrary exercise of government power",
+    "source": "large_pdf.pdf",
+    "difficulty_rationale": "Requires summarizing a general rule rather than copying a clause name.",
+    "required_concepts": [
+      [
+        "evenhanded"
+      ],
+      [
+        "arbitrary exercise of government power"
+      ]
+    ]
+  },
+  {
+    "id": "H01",
+    "level": "hard",
+    "topic": "McCulloch v. Maryland, constitutional test",
+    "question": "State the test from McCulloch v. Maryland for deciding whether Congress may use an implied means to carry out a constitutional power. Include the requirements concerning the end and the means.",
+    "ground_truth": "the end must be legitimate and within the scope of the Constitution, and the means must be appropriate, plainly adapted to that end, not prohibited, and consistent with the letter and spirit of the Constitution",
+    "source": "large_pdf.pdf",
+    "difficulty_rationale": "Requires synthesizing multiple linked requirements from the Court's reasoning.",
+    "required_concepts": [
+      [
+        "legitimate"
+      ],
+      [
+        "within the scope of the Constitution",
+        "within the Constitution's scope"
+      ],
+      [
+        "appropriate"
+      ],
+      [
+        "plainly adapted"
+      ],
+      [
+        "not prohibited"
+      ],
+      [
+        "letter and spirit of the Constitution"
+      ]
+    ]
+  },
+  {
+    "id": "H02",
+    "level": "hard",
+    "topic": "United States v. Lopez, Commerce Clause limits",
+    "question": "A federal law criminalizes possession of a firearm near a school but does not connect the offense to interstate commerce. Using the Commerce Clause reasoning discussed in the Constitution Annotated, why might the law exceed Congress's commerce power?",
+    "ground_truth": "possession of a firearm in a school zone is non-economic activity that does not substantially affect interstate commerce",
+    "source": "large_pdf.pdf",
+    "difficulty_rationale": "Applies the Commerce Clause categories to a concrete legal scenario and identifies the federalism limit.",
+    "required_concepts": [
+      [
+        "non-economic activity",
+        "noneconomic activity",
+        "not a commercial activity",
+        "does not regulate commercial activity"
+      ],
+      [
+        "substantially affect interstate commerce",
+        "substantial effect on interstate commerce",
+        "connected to interstate commerce",
+        "connection to interstate commerce"
+      ]
+    ]
+  },
+  {
+    "id": "H03",
+    "level": "hard",
+    "topic": "Saenz v. Roe, Fourteenth Amendment",
+    "question": "In Saenz v. Roe, how did the Supreme Court use the Fourteenth Amendment's Privileges or Immunities Clause to protect citizens who had recently moved to a new State?",
+    "ground_truth": "the right of newly arrived citizens to be treated the same as other state citizens",
+    "source": "large_pdf.pdf",
+    "difficulty_rationale": "Requires connecting a named Supreme Court decision to a specific constitutional clause and the right it protects.",
+    "required_concepts": [
+      [
+        "newly arrived citizens",
+        "newly arrived residents"
+      ],
+      [
+        "treated the same as other state citizens",
+        "same as other citizens of the state",
+        "full citizens of the state immediately"
+      ]
+    ]
+  },
+  {
+    "id": "H04",
+    "level": "hard",
+    "topic": "Article II, Appointments Clause",
+    "question": "How does the Appointments Clause distinguish the appointment of principal officers from the appointment of inferior officers?",
+    "ground_truth": "principal officers are appointed by the President with the advice and consent of the Senate, while Congress may by law vest appointment of inferior officers in the President alone, the courts of law, or the heads of departments",
+    "source": "large_pdf.pdf",
+    "difficulty_rationale": "Requires comparing two appointment rules and retaining the constitutionally permitted appointing authorities.",
+    "required_concepts": [
+      [
+        "principal officers"
+      ],
+      [
+        "President"
+      ],
+      [
+        "advice and consent of the Senate"
+      ],
+      [
+        "inferior officers"
+      ],
+      [
+        "President alone"
+      ],
+      [
+        "courts of law"
+      ],
+      [
+        "heads of departments"
+      ]
+    ]
+  }
 ]

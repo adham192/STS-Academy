@@ -35,8 +35,9 @@ BACKEND_MODULE = "Speculative_RAG"
 HISTORY_PATH = SESSION_DIR / "JSON-chat-history" / "chat_history.json"
 HISTORY_PATH.parent.mkdir(parents=True, exist_ok=True)
 SETTINGS_PATH = APP_DIR / "settings.json"
-DEFAULT_SETTINGS = {"top_k": 10, "n_subsets": 3, "show_sources": True}
+DEFAULT_SETTINGS = {"top_k": 20, "n_subsets": 5, "show_sources": True}
 RECENT_LIMIT = 5
+ALL_DOCS = "All documents"
 
 
 # --------------------------------------------------------------------------- #
@@ -344,6 +345,16 @@ with st.sidebar:
                     logger.info("Removing document %s", doc_name)
                     load_backend().delete_document(doc_name)
                     st.rerun()
+        # ---- search scope: all PDFs or just one ----
+        scope_options = [ALL_DOCS] + list(indexed_docs.keys())
+        if ss.get("search_scope") not in scope_options:
+            ss.search_scope = ALL_DOCS  # e.g. the selected document was removed
+        st.markdown('<div class="side-heading">Search in</div>', unsafe_allow_html=True)
+        st.selectbox(
+            "Search in", scope_options, key="search_scope", label_visibility="collapsed",
+            help="Pick one PDF to search only that document, so other PDFs can't "
+                 "distract the answer.",
+        )
     else:
         st.caption("No documents yet. Upload a PDF to get started.")
 
@@ -401,10 +412,22 @@ if question and question.strip():
             with st.chat_message("assistant", avatar="🔵"):
                 with st.spinner("Searching your documents…"):
                     backend = load_backend()
+                    # Earlier messages of THIS chat (everything before the new
+                    # question) give the pipeline its conversational memory.
+                    chat_history = [
+                        {"role": m["role"], "content": m["content"]}
+                        for m in messages[:-1]
+                        if m.get("role") in ("user", "assistant") and m.get("content")
+                    ]
+                    # Restrict retrieval to one PDF when the user picked one.
+                    selected = ss.get("search_scope")
+                    source = selected if selected in indexed_docs else None
                     answer, sources = backend.answer_question(
                         question,
                         k=int(ss.settings["top_k"]),
                         n_subsets=int(ss.settings["n_subsets"]),
+                        history=chat_history,
+                        source=source,
                     )
                 st.markdown(answer)
                 if sources and ss.settings["show_sources"]:

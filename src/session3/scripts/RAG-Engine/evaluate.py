@@ -1,9 +1,14 @@
 """
-Evaluation for the Speculative RAG pipeline.
+Controlled evaluation of three Speculative RAG subset-construction strategies.
 
-Test set format (eval_set.json), only question + ground_truth are needed.
-ground_truth can be a string or a list of acceptable strings:
+Strategies:
+  ranked      - original relevance-ranked adjacent overlapping pairs
+  embedding   - chunk-to-chunk similarity-guided overlapping chains
+  dual_anchor - keep the top question-relevant chunk from each cluster as an
+                anchor, then vary its embedding-nearest companion
 
+The same retrieval result and K-Means labels are reused across all strategies
+for each question. The plain-RAG baseline is run once per question.
 """
 import json
 import logging
@@ -14,291 +19,313 @@ from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 
 HERE = Path(__file__).resolve()
-SESSION_DIR = HERE.parents[2]               # src/session3 (data folders and app.log live here)
-SRC_DIR = HERE.parents[3]                   # src/ (holds the shared logging_config.py)
+SESSION_DIR = HERE.parents[2]  # keep the same project layout as the original evaluator
+SRC_DIR = HERE.parents[3]
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
 from logging_config import setup_logging  # noqa: E402
-
 setup_logging(SESSION_DIR)
 logger = logging.getLogger("evaluate")
 
-# Import the pipeline pieces used by both the app and evaluation.
-from Speculative_RAG import build_index, retrieve, cluster, build_subsets, draft, verify
+from Speculative_RAG import (  # noqa: E402
+    build_index,
+    list_documents,
+    retrieve,
+    cluster,
+    build_subsets,
+    draft,
+    verify,
+    DEFAULT_RETRIEVAL_K,
+    DEFAULT_N_CLUSTERS,
+    DEFAULT_N_SUBSETS,
+)
 
-BASE_DIR = Path(__file__).resolve().parent
 EVAL_PATH = SESSION_DIR / "JSON-Test-cases/ground_truth.json"
 RESULTS_PATH = SESSION_DIR / "JSON-evaluation-results/eval_results.json"
 RESULTS_PATH.parent.mkdir(parents=True, exist_ok=True)
-K = 10
-N_SUBSETS = 3
-SLEEP_BETWEEN_QUESTIONS = 0  # raise (e.g. 5) if you hit Gemini rate limits
+
+K = DEFAULT_RETRIEVAL_K
+N_SUBSETS = DEFAULT_N_SUBSETS
+STRATEGIES = ("ranked", "embedding", "dual_anchor")
+SLEEP_BETWEEN_QUESTIONS = 0
 
 
-# --------------------------------------------------------------------------- #
-# Matching helpers
-# --------------------------------------------------------------------------- #
 def contains(text, truths):
-    """Match an answer phrase or an equivalent numeric value."""
+    """Return True if an accepted ground-truth phrase appears in text."""
     if isinstance(truths, str):
         truths = [truths]
-
-    def number_values(value):
-        values = []
-        for match in re.finditer(r"(?<![\w.])[-+]?\d[\d,]*(?:\.\d+)?\s*%?", value):
-            token = match.group(0).strip()
-            is_percent = token.endswith("%")
-            token = token.rstrip("%").replace(",", "").strip()
-            try:
-                number = float(token)
-                values.append(number / 100 if is_percent else number)
-            except ValueError:
-                continue
-        return values
-
-    answer_numbers = number_values(text)
+    text_norm = re.sub(r"[^a-z0-9]+", " ", str(text).lower()).strip()
     for truth in truths:
-        truth = str(truth)
-        numeric_truth = truth.replace(",", "").strip()
-        # Numeric ground truths must match a whole numeric value, allowing
-        # equivalent percentage notation (0.932 == 93.2%).
-        if re.fullmatch(r"[-+]?\d+(?:\.\d+)?%?", numeric_truth):
-            truth_numbers = number_values(truth)
-            if any(abs(candidate - expected) <= max(1e-9, abs(expected) * 1e-9)
-                   for expected in truth_numbers for candidate in answer_numbers):
-                return True
-            continue
-
-        needle = re.sub(r"[^a-z0-9]+", " ", truth.lower()).strip()
-        haystack = re.sub(r"[^a-z0-9]+", " ", text.lower()).strip()
-        if needle and re.search(rf"(?<![a-z0-9]){re.escape(needle)}(?![a-z0-9])", haystack):
+        needle = re.sub(r"[^a-z0-9]+", " ", str(truth).lower()).strip()
+        if needle and re.search(
+            rf"(?<![a-z0-9]){re.escape(needle)}(?![a-z0-9])",
+            text_norm,
+        ):
             return True
     return False
 
 
-# --------------------------------------------------------------------------- #
-# Pipelines (return internals so each stage can be measured)
-# --------------------------------------------------------------------------- #
-def run_speculative(question, k=K, n_subsets=N_SUBSETS):
-    logger.debug("Retrieving document chunks (k=%d)", k)
-    print("   Retrieving document chunks...", flush=True)
-    docs, _metas, embs = retrieve(question, k=k)
-    if not docs:
-        logger.warning("No chunks retrieved for: %s", question)
-        return {
-            "answer": "", "docs": [], "subsets": [], "drafts": [],
-            "scores": [], "evidence": "", "best": None,
-        }
+def matches_item(text, item):
+    """
+    Require at least one phrase from every required_concepts group.
+    This is stricter than a single substring but tolerates common paraphrases.
+    Falls back to ground_truth phrase matching for older test-set records.
+    """
+    groups = item.get("required_concepts")
+    if not groups:
+        return contains(text, item["ground_truth"])
+    normalized = re.sub(r"[^a-z0-9]+", " ", str(text).lower()).strip()
+    for alternatives in groups:
+        if not any(
+            re.search(
+                rf"(?<![a-z0-9]){re.escape(re.sub(r'[^a-z0-9]+', ' ', phrase.lower()).strip())}(?![a-z0-9])",
+                normalized,
+            )
+            for phrase in alternatives
+        ):
+            return False
+    return True
 
-    labels = cluster(embs, n_clusters=n_subsets)
-    subsets = build_subsets(docs, labels, n_subsets=n_subsets)
 
-    logger.debug("Generating %d Ollama drafts", n_subsets)
-    print(f"   Generating {n_subsets} Ollama drafts...", flush=True)
-    with ThreadPoolExecutor(max_workers=n_subsets) as pool:
-        drafts = list(pool.map(lambda s: draft(question, s), subsets))
-    logger.debug("Comparing drafts with Gemini")
-    print("   Comparing drafts with Gemini...", flush=True)
-    scores, best, evidence, final_answer = verify(question, drafts, subsets)
-    logger.debug("Gemini scores: %s, best draft: %s", scores, best)
+def run_drafts_and_verification(question, subsets):
+    """Run the same drafting and verifier stages for one subset strategy."""
+    with ThreadPoolExecutor(max_workers=len(subsets)) as pool:
+        drafts = list(pool.map(lambda subset: draft(question, subset), subsets))
+    scores, best, tie_reason, final_answer = verify(question, drafts, subsets)
     return {
         "answer": final_answer,
-        "docs": docs,
-        "subsets": subsets,
         "drafts": drafts,
         "scores": scores,
-        "evidence": evidence,
-        "best": best,
+        "best_draft_index": best,
+        "verifier_decision": tie_reason,
     }
 
 
-def run_baseline(question, k=K):
-    """Plain RAG: all k chunks in ONE prompt, ONE model call, no clustering/verifying."""
-    logger.debug("Baseline retrieval (k=%d)", k)
-    docs, _metas, _embs = retrieve(question, k=k)
+def score_one_question(item):
+    question = item["question"]
+    truth = item["ground_truth"]
+    source = item.get("source") or None
+
+    # Retrieval and clustering are performed ONCE, then reused by all strategies.
+    started = time.perf_counter()
+    docs, metas, embeddings, distances = retrieve(
+        question, k=K, return_distances=True, source=source
+    )
+    retrieval_seconds = time.perf_counter() - started
+
     if not docs:
-        logger.warning("Baseline: no chunks retrieved")
-        return {"answer": "", "docs": []}
-    return {"answer": draft(question, docs)["answer"], "docs": docs}
+        return {
+            "question": question,
+            "level": item.get("level"),
+            "ground_truth": truth,
+            "source": source,
+            "status": "no_retrieval",
+            "strategies": {},
+        }
 
+    labels = cluster(embeddings, n_clusters=DEFAULT_N_CLUSTERS)
+    retrieval_rank = next(
+        (rank for rank, doc in enumerate(docs, start=1) if matches_item(doc, item)),
+        0,
+    )
 
-# --------------------------------------------------------------------------- #
-# Per-question scoring
-# --------------------------------------------------------------------------- #
-def first_hit_rank(docs, truths):
-    """1-based rank of the first retrieved chunk containing the ground truth (0 if none)."""
-    for rank, d in enumerate(docs, start=1):
-        if contains(d, truths):
-            return rank
-    return 0
+    strategy_results = {}
+    for strategy in STRATEGIES:
+        print(f"      Strategy: {strategy}", flush=True)
+        started = time.perf_counter()
+        subsets = build_subsets(
+            docs,
+            labels,
+            n_subsets=N_SUBSETS,
+            distances=distances,
+            embeddings=embeddings,
+            overlap_strategy=strategy,
+        )
+        construction_seconds = time.perf_counter() - started
 
+        started = time.perf_counter()
+        generated = run_drafts_and_verification(question, subsets)
+        generation_and_verification_seconds = time.perf_counter() - started
 
-def diagnose(r):
-    """Name the first stage that lost the answer (only meaningful when final is wrong)."""
-    if not r["retrieval_hit"]:
-        return "retrieval"
-    if not r["subset_hit"]:
-        return "subsets"
-    if not r["oracle"]:
-        return "drafter"
-    return "verifier"
+        subset_hit = any(matches_item(doc, item) for subset in subsets for doc in subset)
+        oracle = any(matches_item(draft_item["answer"], item)
+                     for draft_item in generated["drafts"])
+        final_correct = matches_item(generated["answer"], item)
 
+        strategy_results[strategy] = {
+            "answer": generated["answer"],
+            "draft_answers": [d["answer"] for d in generated["drafts"]],
+            "draft_rationales": [d["rationale"] for d in generated["drafts"]],
+            "verifier_scores": generated["scores"],
+            "best_draft_index": generated["best_draft_index"],
+            "verifier_decision": generated["verifier_decision"],
+            "subset_chunk_positions": [
+                [docs.index(doc) + 1 for doc in subset] for subset in subsets
+            ],
+            "subset_hit": subset_hit,
+            "oracle_draft_correct": oracle,
+            "final_correct": final_correct,
+            "subset_construction_seconds": construction_seconds,
+            "draft_and_verification_seconds": generation_and_verification_seconds,
+        }
 
-def score_question(item):
-    q, truth = item["question"], item["ground_truth"]
+    # Plain RAG baseline uses the same retrieved top-k chunks and runs only once.
+    started = time.perf_counter()
+    baseline_answer = draft(question, docs)["answer"]
+    baseline_seconds = time.perf_counter() - started
 
-    t = time.time()
-    out = run_speculative(q)
-    spec_latency = time.time() - t
-
-    t = time.time()
-    base = run_baseline(q)
-    base_latency = time.time() - t
-
-    rank = first_hit_rank(out["docs"], truth)
-    r = {
-        "question": q,
+    return {
+        "question": question,
+        "level": item.get("level"),
+        "topic": item.get("topic"),
         "ground_truth": truth,
-        "spec_answer": out["answer"],
-        "baseline_answer": base["answer"],
-        "draft_answers": [d["answer"] for d in out["drafts"]],
-        "scores": out["scores"],
-        "verifier_evidence": out["evidence"],
-        # retrieval
-        "retrieval_hit": rank > 0,
-        "reciprocal_rank": 1 / rank if rank else 0.0,
-        # did at least one subset keep a chunk containing the answer?
-        "subset_hit": any(contains(d, truth) for s in out["subsets"] for d in s),
-        # drafting
-        "oracle": any(contains(d["answer"], truth) for d in out["drafts"]),
-        # end-to-end
-        "spec_correct": contains(out["answer"], truth),
-        "baseline_correct": contains(base["answer"], truth),
-        "spec_latency": spec_latency,
-        "baseline_latency": base_latency,
+        "source": source,
+        "status": "ok",
+        "retrieval": {
+            "retrieved_chunks": len(docs),
+            "answer_bearing_chunk_found": retrieval_rank > 0,
+            "first_answer_bearing_rank": retrieval_rank or None,
+            "reciprocal_rank": 1.0 / retrieval_rank if retrieval_rank else 0.0,
+            "seconds": retrieval_seconds,
+            "cluster_sizes": {
+                str(label): int(sum(int(x) == int(label) for x in labels))
+                for label in sorted(set(labels))
+            },
+        },
+        "strategies": strategy_results,
+        "baseline": {
+            "answer": baseline_answer,
+            "correct": matches_item(baseline_answer, item),
+            "seconds": baseline_seconds,
+        },
     }
-    r["failure_stage"] = None if r["spec_correct"] else diagnose(r)
-    logger.info(
-        "Result: spec_correct=%s baseline_correct=%s failure_stage=%s spec=%.1fs baseline=%.1fs",
-        r["spec_correct"], r["baseline_correct"], r["failure_stage"],
-        r["spec_latency"], r["baseline_latency"],
-    )
-    return r
 
 
-# --------------------------------------------------------------------------- #
-# Aggregate metrics
-# --------------------------------------------------------------------------- #
 def summarize(results):
-    failed = [r for r in results if r.get("status") == "error"]
-    total = len(results)
-    results = [r for r in results if r.get("status") == "ok"]
-    n = len(results)
-    print(f"\nEnd-to-end if failed questions count as wrong: "
-          f"{sum(r['spec_correct'] for r in results)}/{total}")
-    print(f"\nQuestions: {n} completed, {len(failed)} failed")
-    if not n:
-        logger.warning("No questions completed successfully; no metrics to summarize")
-        print("No questions completed successfully; no metrics to summarize.")
+    completed = [r for r in results if r.get("status") == "ok"]
+    failed = [r for r in results if r.get("status") != "ok"]
+    print("\n" + "=" * 76)
+    print("THREE-STRATEGY SPECULATIVE RAG EVALUATION")
+    print("=" * 76)
+    print(f"Completed: {len(completed)} | Failed/no retrieval: {len(failed)}")
+    if not completed:
+        print("No completed questions; metrics cannot be calculated.")
         return
-    pct = lambda key: sum(r[key] for r in results) / n
-    logger.info(
-        "Evaluation summary: %d completed, %d failed, Speculative %.1f%%, Baseline %.1f%%",
-        n, len(failed), pct("spec_correct") * 100, pct("baseline_correct") * 100,
+
+    baseline_accuracy = sum(r["baseline"]["correct"] for r in completed) / len(completed)
+    print(f"\nPlain RAG baseline accuracy: {baseline_accuracy:.1%}")
+
+    header = (
+        f"{'Strategy':<14} {'Accuracy':>10} {'Oracle':>10} "
+        f"{'Subset hit':>11} {'MRR':>8} {'Avg sec':>10}"
     )
+    print("\n" + header)
+    print("-" * len(header))
 
-    oracle_n = sum(r["oracle"] for r in results)
-    final_correct_when_possible = sum(r["oracle"] and r["spec_correct"] for r in results)
+    for strategy in STRATEGIES:
+        rows = [r for r in completed if strategy in r["strategies"]]
+        if not rows:
+            continue
+        acc = sum(r["strategies"][strategy]["final_correct"] for r in rows) / len(rows)
+        oracle = sum(r["strategies"][strategy]["oracle_draft_correct"] for r in rows) / len(rows)
+        subset_hit = sum(r["strategies"][strategy]["subset_hit"] for r in rows) / len(rows)
+        mrr = sum(r["retrieval"]["reciprocal_rank"] for r in rows) / len(rows)
+        avg_sec = sum(
+            r["strategies"][strategy]["subset_construction_seconds"]
+            + r["strategies"][strategy]["draft_and_verification_seconds"]
+            for r in rows
+        ) / len(rows)
+        print(
+            f"{strategy:<14} {acc:>9.1%} {oracle:>9.1%} "
+            f"{subset_hit:>10.1%} {mrr:>8.3f} {avg_sec:>9.1f}"
+        )
 
-    print("\n" + "=" * 60)
-    print(f"EVALUATION RESULTS ({n} questions)")
-    print("=" * 60)
+    print("\nAccuracy by difficulty")
+    for level in ("easy", "medium", "hard"):
+        rows = [r for r in completed if r.get("level") == level]
+        if not rows:
+            continue
+        print(f"  {level.title()} ({len(rows)} questions)")
+        for strategy in STRATEGIES:
+            valid = [r for r in rows if strategy in r["strategies"]]
+            if valid:
+                acc = sum(r["strategies"][strategy]["final_correct"] for r in valid) / len(valid)
+                print(f"    {strategy:<12}: {acc:.1%}")
+        print(
+            f"    {'baseline':<12}: "
+            f"{sum(r['baseline']['correct'] for r in rows) / len(rows):.1%}"
+        )
 
-    print("\n[Retrieval]")
-    print(f"  Hit rate@{K}            : {pct('retrieval_hit'):.1%}  (answer text in a retrieved chunk)")
-    print(f"  MRR                    : {sum(r['reciprocal_rank'] for r in results) / n:.3f}  (higher = answer ranked earlier)")
-    print(f"  Subset coverage        : {pct('subset_hit'):.1%}  (answer text survived into some subset)")
-
-    print("\n[Drafting]")
-    print(f"  Oracle draft accuracy  : {pct('oracle'):.1%}  (at least one of the drafts is correct)")
-
-    print("\n[Verification]")
-    conditional_accuracy = final_correct_when_possible / oracle_n if oracle_n else 0.0
-    print(
-        f"  Final answer accuracy when a draft was correct: {conditional_accuracy:.1%}"
-    )
-
-    print("\n[End-to-end]")
-    print(f"  Speculative RAG acc.   : {pct('spec_correct'):.1%}")
-    print(f"  Baseline RAG acc.      : {pct('baseline_correct'):.1%}")
-
-    print("\n[Latency, average per question]")
-    print(f"  Speculative RAG        : {sum(r['spec_latency'] for r in results) / n:.1f}s")
-    print(f"  Baseline RAG           : {sum(r['baseline_latency'] for r in results) / n:.1f}s")
-    print("  Note: Gemini candidate comparison is rate-limited to about one call every 13 seconds.")
-
-    failures = [r for r in results if not r["spec_correct"]]
-    print(f"\n[Where the {len(failures)} wrong answers were lost]")
-    for stage in ("retrieval", "subsets", "drafter", "verifier"):
-        count = sum(r["failure_stage"] == stage for r in failures)
-        print(f"  {stage:<10}: {count}")
+    print("\nInterpretation notes:")
+    print("- Oracle = at least one generated draft matched the ground-truth phrase.")
+    print("- Subset hit = at least one subset retained a chunk containing that phrase.")
+    print("- MRR is a shared retrieval metric, so it should be identical across strategies.")
+    print("- Phrase matching is an automatic proxy; inspect saved answers for semantic equivalents.")
 
 
 def evaluate():
-    logger.info("Evaluation started (K=%d, N_SUBSETS=%d)", K, N_SUBSETS)
-    with open(EVAL_PATH, encoding="utf-8") as f:
-        data = json.load(f)
-    if not isinstance(data, list) or any(
-        not isinstance(item, dict) or not item.get("question") or "ground_truth" not in item
-        for item in data
-    ):
-        raise ValueError("ground_truth.json must be a list of objects with question and ground_truth fields")
+    with open(EVAL_PATH, encoding="utf-8") as file:
+        test_items = json.load(file)
+    if not isinstance(test_items, list) or not test_items:
+        raise ValueError("The ground-truth file must contain a non-empty JSON list.")
+    for index, item in enumerate(test_items, start=1):
+        if not isinstance(item, dict) or not item.get("question") or "ground_truth" not in item:
+            raise ValueError(f"Invalid test item at position {index}: question and ground_truth are required.")
 
-    logger.info("Loaded %d test cases from %s", len(data), EVAL_PATH)
-    build_index()
-
-    verifier_calls = len(data)
-    minimum_spacing_minutes = max(0, verifier_calls - 1) * 13 / 60
+    print(f"Loaded {len(test_items)} questions from {EVAL_PATH}")
+    print(f"Strategies: {', '.join(STRATEGIES)}")
+    print(f"Retrieval k={K}; clusters={DEFAULT_N_CLUSTERS}; subsets={N_SUBSETS}")
     print(
-        f"Gemini rate-limit spacing alone may take about "
-        f"{minimum_spacing_minutes:.1f} minutes ({verifier_calls} comparison calls); "
-        "model response time and retries add to this."
+        f"Gemini verification calls: approximately {len(test_items) * len(STRATEGIES)}. "
+        "At a 13-second minimum interval, pacing alone may take "
+        f"{(len(test_items) * len(STRATEGIES) - 1) * 13 / 60:.1f} minutes."
     )
 
+    build_index()
+    indexed = list_documents()
+    unknown_sources = sorted({
+        item["source"] for item in test_items
+        if item.get("source") and item["source"] not in indexed
+    })
+    if unknown_sources:
+        raise ValueError(
+            "The following source PDFs are not indexed: "
+            f"{unknown_sources}. Indexed documents: {sorted(indexed)}. "
+            "Place GPO-CONAN-2022.pdf in the project's pdfs folder and rerun."
+        )
+
     results = []
-    for i, item in enumerate(data, start=1):
-        logger.info("[%d/%d] %s", i, len(data), item["question"])
-        print(f"[{i}/{len(data)}] {item['question']}", flush=True)
+    for index, item in enumerate(test_items, start=1):
+        print(f"\n[{index}/{len(test_items)}] [{item.get('level', 'unrated')}] {item['question']}", flush=True)
         try:
-            result = score_question(item)
-            result["status"] = "ok"
+            result = score_one_question(item)
             results.append(result)
-        except Exception as e:
-            logger.exception("Question %d failed", i)
-            print(f"   skipped, error: {e}")
+        except Exception as error:
+            logger.exception("Question %d failed", index)
             results.append({
                 "question": item.get("question", ""),
+                "level": item.get("level"),
                 "ground_truth": item.get("ground_truth"),
                 "status": "error",
-                "evaluation_error": str(e),
+                "evaluation_error": str(error),
+                "strategies": {},
             })
-            error_text = str(e)
-            if any(marker in error_text for marker in (
-                "Gemini quota is exhausted",
-                "Gemini model ",
-                "Gemini verification failed after",
+            error_text = str(error).lower()
+            if any(token in error_text for token in (
+                "gemini quota is exhausted",
+                "resource_exhausted",
+                "gemini model",
+                "gemini verification failed",
             )):
-                logger.error("Stopping evaluation because Gemini verification is unavailable")
-                print("Stopping evaluation because Gemini verification is unavailable.")
+                print("Stopping: Gemini verification is unavailable or quota is exhausted.")
                 break
         if SLEEP_BETWEEN_QUESTIONS:
             time.sleep(SLEEP_BETWEEN_QUESTIONS)
 
-    with open(RESULTS_PATH, "w", encoding="utf-8") as f:
-        json.dump(results, f, indent=2, ensure_ascii=False)
-    logger.info("Per-question details saved to %s", RESULTS_PATH)
-    print(f"\nPer-question details saved to {RESULTS_PATH}")
+    with open(RESULTS_PATH, "w", encoding="utf-8") as file:
+        json.dump(results, file, indent=2, ensure_ascii=False)
+    print(f"\nDetailed results saved to: {RESULTS_PATH}")
     summarize(results)
 
 

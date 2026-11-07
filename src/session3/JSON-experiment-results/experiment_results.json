@@ -1,0 +1,230 @@
+{
+  "args": {
+    "stage": "structure",
+    "limit": 0,
+    "seed": 0,
+    "k": 3,
+    "ks": "2,3,4,5",
+    "k_retrieve": 10,
+    "algos": "",
+    "modes": "",
+    "top_algos": 2,
+    "base_algo": "kmeans_current",
+    "full_factorial": false,
+    "max_answer_words": 60,
+    "cache_only": false,
+    "dry_run": false
+  },
+  "structure": {
+    "kmeans_current|subsets": {
+      "coverage": 1.0,
+      "draft_support": 1.0,
+      "diversity": 0.4722222222222222,
+      "stability": 0.7246208483172563,
+      "n": 2
+    },
+    "kmeans_current|clusters_only": {
+      "coverage": 1.0,
+      "draft_support": 0.6666666666666666,
+      "diversity": 1.0,
+      "stability": 0.7246208483172563,
+      "n": 2
+    },
+    "kmeans_current|clusters_plus_top2": {
+      "coverage": 1.0,
+      "draft_support": 1.0,
+      "diversity": 0.7037037037037037,
+      "stability": 0.7246208483172563,
+      "n": 2
+    },
+    "kmeans_l2|subsets": {
+      "coverage": 1.0,
+      "draft_support": 1.0,
+      "diversity": 0.4722222222222222,
+      "stability": 0.7246208483172563,
+      "n": 2
+    },
+    "kmeans_l2|clusters_only": {
+      "coverage": 1.0,
+      "draft_support": 0.6666666666666666,
+      "diversity": 1.0,
+      "stability": 0.7246208483172563,
+      "n": 2
+    },
+    "kmeans_l2|clusters_plus_top2": {
+      "coverage": 1.0,
+      "draft_support": 1.0,
+      "diversity": 0.7037037037037037,
+      "stability": 0.7246208483172563,
+      "n": 2
+    },
+    "agglo_ward|subsets": {
+      "coverage": 1.0,
+      "draft_support": 1.0,
+      "diversity": 0.6507936507936507,
+      "stability": 0.784189723320158,
+      "n": 2
+    },
+    "agglo_ward|clusters_only": {
+      "coverage": 1.0,
+      "draft_support": 0.6666666666666666,
+      "diversity": 1.0,
+      "stability": 0.784189723320158,
+      "n": 2
+    },
+    "agglo_ward|clusters_plus_top2": {
+      "coverage": 1.0,
+      "draft_support": 1.0,
+      "diversity": 0.7242063492063493,
+      "stability": 0.784189723320158,
+      "n": 2
+    },
+    "agglo_cosine|subsets": {
+      "coverage": 1.0,
+      "draft_support": 1.0,
+      "diversity": 0.3333333333333333,
+      "stability": 0.8609090909090908,
+      "n": 2
+    },
+    "agglo_cosine|clusters_only": {
+      "coverage": 1.0,
+      "draft_support": 0.3333333333333333,
+      "diversity": 1.0,
+      "stability": 0.8609090909090908,
+      "n": 2
+    },
+    "agglo_cosine|clusters_plus_top2": {
+      "coverage": 1.0,
+      "draft_support": 1.0,
+      "diversity": 0.6851851851851851,
+      "stability": 0.8609090909090908,
+      "n": 2
+    },
+    "spectral|subsets": {
+      "coverage": 1.0,
+      "draft_support": 1.0,
+      "diversity": 0.6111111111111112,
+      "stability": 0.7876445293836598,
+      "n": 2
+    },
+    "spectral|clusters_only": {
+      "coverage": 1.0,
+      "draft_support": 0.6666666666666666,
+      "diversity": 1.0,
+      "stability": 0.7876445293836598,
+      "n": 2
+    },
+    "spectral|clusters_plus_top2": {
+      "coverage": 1.0,
+      "draft_support": 1.0,
+      "diversity": 0.7222222222222223,
+      "stability": 0.7876445293836598,
+      "n": 2
+    },
+    "gmm|subsets": {
+      "coverage": 1.0,
+      "draft_support": 1.0,
+      "diversity": 0.4126984126984127,
+      "stability": 0.5294230769230769,
+      "n": 2
+    },
+    "gmm|clusters_only": {
+      "coverage": 1.0,
+      "draft_support": 0.3333333333333333,
+      "diversity": 1.0,
+      "stability": 0.5294230769230769,
+      "n": 2
+    },
+    "gmm|clusters_plus_top2": {
+      "coverage": 1.0,
+      "draft_support": 1.0,
+      "diversity": 0.6972222222222222,
+      "stability": 0.5294230769230769,
+      "n": 2
+    },
+    "dbscan|subsets": {
+      "coverage": 1.0,
+      "draft_support": 1.0,
+      "diversity": 0.5,
+      "stability": 1.0,
+      "n": 2
+    },
+    "dbscan|clusters_only": {
+      "coverage": 1.0,
+      "draft_support": 1.0,
+      "diversity": 0.0,
+      "stability": 1.0,
+      "n": 2
+    },
+    "dbscan|clusters_plus_top2": {
+      "coverage": 1.0,
+      "draft_support": 1.0,
+      "diversity": 0.0,
+      "stability": 1.0,
+      "n": 2
+    },
+    "kcenter|subsets": {
+      "coverage": 1.0,
+      "draft_support": 1.0,
+      "diversity": 0.3333333333333333,
+      "stability": 0.8853383458646618,
+      "n": 2
+    },
+    "kcenter|clusters_only": {
+      "coverage": 1.0,
+      "draft_support": 0.3333333333333333,
+      "diversity": 1.0,
+      "stability": 0.8853383458646618,
+      "n": 2
+    },
+    "kcenter|clusters_plus_top2": {
+      "coverage": 1.0,
+      "draft_support": 1.0,
+      "diversity": 0.6851851851851851,
+      "stability": 0.8853383458646618,
+      "n": 2
+    },
+    "rank_roundrobin|subsets": {
+      "coverage": 1.0,
+      "draft_support": 1.0,
+      "diversity": 0.6904761904761904,
+      "stability": 0.43650793650793657,
+      "n": 2
+    },
+    "rank_roundrobin|clusters_only": {
+      "coverage": 1.0,
+      "draft_support": 0.6666666666666666,
+      "diversity": 1.0,
+      "stability": 0.43650793650793657,
+      "n": 2
+    },
+    "rank_roundrobin|clusters_plus_top2": {
+      "coverage": 1.0,
+      "draft_support": 1.0,
+      "diversity": 0.7261904761904763,
+      "stability": 0.43650793650793657,
+      "n": 2
+    },
+    "random|subsets": {
+      "coverage": 1.0,
+      "draft_support": 1.0,
+      "diversity": 0.6904761904761904,
+      "stability": 0.0,
+      "n": 2
+    },
+    "random|clusters_only": {
+      "coverage": 1.0,
+      "draft_support": 0.6666666666666666,
+      "diversity": 1.0,
+      "stability": 0.0,
+      "n": 2
+    },
+    "random|clusters_plus_top2": {
+      "coverage": 1.0,
+      "draft_support": 1.0,
+      "diversity": 0.7261904761904763,
+      "stability": 0.0,
+      "n": 2
+    }
+  }
+}
