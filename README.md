@@ -1,107 +1,233 @@
 # STS-Academy
 
-Course projects for the STS Academy. Each session lives in its own branch, so this page is your map: find what you want to do, then go to the branch that has it.
+Course projects for the STS Academy, one branch per session.
 
-## How to use this repository
+## Branches
 
-1. Clone it once:
+| Branch | What it contains |
+|---|---|
+| `main` | Guide to each branch |
+| `session1` | Hosting Model on cloud |
+| `session1-assignments` | Hosting Model locally and on cloud |
+| `session2` | PDF embedding and retrieval with ChromaDB and a local Ollama model |
+| `session2-assignments` | Multi-PDF RAG assistant with Streamlit UI, document routing, and quantitative evaluation |
+| `session3` | Speculative RAG assistant with parallel Ollama drafts, Gemini verification, Streamlit chat UI, central logging, and stage-by-stage evaluation against a baseline |
+| `session4` | FastAPI chatbot API with Pydantic input and output validation, per-request logging to separate files, and a switchable LLM (Gemini in the cloud or a local Ollama model) |
 
-   ```bash
-   git clone <repo-url>
-   cd STS-Academy
-   ```
+## Project structure (`session4` branch)
 
-2. Switch to the branch you need (see the guide below):
+```
+STS-Academy/
+├── src/
+│   ├── logging_config.py                               # logging setup from session 3 (not used by session 4)
+│   └── session4/
+│       ├── app/
+│       │   ├── main.py                                 # builds the FastAPI app and wires everything together
+│       │   ├── api/
+│       │   │   └── routes/
+│       │   │       ├── chat.py                         # POST /api/v1/chat
+│       │   │       └── health.py                       # GET /health
+│       │   ├── core/
+│       │   │   ├── config.py                           # settings read from .env (validated with Pydantic)
+│       │   │   └── logging_config.py                   # logging.config.dictConfig, log files and request ID
+│       │   ├── middleware/
+│       │   │   └── request_logging.py                  # request ID and one access-log line per request
+│       │   ├── schemas/
+│       │   │   └── chat.py                             # ChatRequest and ChatResponse (Pydantic)
+│       │   └── services/
+│       │       ├── chat_service.py                     # takes a question, asks the LLM, returns the answer
+│       │       └── llm_clients.py                      # Gemini client, Ollama client, and the provider switch
+│       ├── logs/                                       # app.log, error.log, access.log (created at runtime)
+│       └── scripts/
+│           └── run_dev.py                              # starts the API server
+├── .env.example                                        # template for environment variables
+├── .gitignore
+├── .python-version
+├── pyproject.toml                                      # project dependencies (used by uv)
+├── uv.lock                                             # exact dependency versions (used by uv)
+└── README.md
+```
 
-   ```bash
-   git checkout <branch-name>
-   ```
+## What session 4 does
 
-3. Follow the README of that branch. Each branch has its own README with full setup and run instructions.
+This branch turns a question-and-answer chatbot into a small **FastAPI service**. You send a question over HTTP and an LLM sends an answer back. The focus is on a clean folder structure, strict input and output validation, and a logging system that records every event in its own file from the moment the app starts.
 
-Tips:
+**`main.py`** builds the application:
 
-* All projects use [uv](https://docs.astral.sh/uv/) for Python and dependencies. After switching branches, run `uv sync` so your environment matches that branch.
-* Every branch has its own `.env.example`. Copy it to `.env` and fill in your own values. Never commit your `.env` file.
+1. Sets up logging first, so everything that happens afterwards is captured.
+2. Builds the LLM client at startup, so a missing key or model stops the server immediately with a clear error.
+3. Adds the request-logging middleware and registers the routes under `/api/v1`.
 
-Install uv if you don't have it:
+**`logging_config.py`** (in `core/`) is called once at startup and writes to three rotating files (5 MB each, 5 backups kept) in `logs/`:
+
+- `app.log`: everything from DEBUG and above, including uvicorn's own messages.
+- `error.log`: errors and tracebacks only.
+- `access.log`: one line per HTTP request, with method, path, status code, and duration.
+
+Every line has the same format: `timestamp | level | request_id | logger:line | message`. Loggers are named `app.*` (your code), `app.access` (requests), and `uvicorn`.
+
+**`request_logging.py`** gives every request a short ID, measures how long it takes, and logs it. The ID appears on every log line written during that request and is returned in the `X-Request-ID` response header, so one request can be followed across all the log files. Unhandled errors are logged with their full traceback.
+
+**`schemas/chat.py`** validates data in and out with Pydantic:
+
+- **Input (`ChatRequest`):** `session_id` must be 1 to 64 characters (letters, digits, `_` or `-`), and `message` must be 1 to 1000 characters. Surrounding whitespace is stripped first. Invalid input is rejected with a `422` before any application code runs.
+- **Output (`ChatResponse`):** `session_id`, `answer` (1 to 10000 characters), and a UTC `timestamp`. The route uses it as its `response_model`, so a malformed response is never sent to the client.
+
+**`chat_service.py`** and **`llm_clients.py`** answer the question:
+
+- **Gemini (cloud):** called over HTTP with your API key.
+- **Ollama (local):** called on your local Ollama server.
+- `LLM_PROVIDER` in `.env` chooses which one is used. If the LLM fails or returns an empty answer, the API returns a `502` and the real cause is written to `error.log`.
+- The question and answer text is logged at DEBUG level only. At the default INFO level, the logs record lengths and timings.
+
+**`config.py`** reads all settings from `.env` and validates them. The API key is stored as a secret, so it never appears in logs.
+
+## Installation (using uv)
+
+### 1. Requirements
+
+- [uv](https://docs.astral.sh/uv/) (manages virtual environments and Python versions)
+- A [Google Gemini](https://aistudio.google.com/) API key (if you use `LLM_PROVIDER=gemini`)
+- [Ollama](https://ollama.com/) installed and running locally (if you use `LLM_PROVIDER=ollama`)
+
+Install `uv` if you do not have it:
 
 ```bash
 # Linux / macOS
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-On Windows, use `powershell -c "irm https://astral.sh/uv/install.ps1 | iex"`.
+On Windows:
 
-## Which branch do I need?
-
-### If you want to set up your environment and test the Gemini API
-
-Go to **`session1`**:
-
-```bash
-git checkout session1
+```powershell
+powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
 ```
 
-You will find: how to set up `uv`, the Git basics used in the course (`.gitignore`, `.env.example`), an overview of local vs. cloud LLM hosting, and `First-Day.py`, a small script that checks your Gemini API key works.
-
-### If you want to see text summarization with a cloud model and a local model
-
-Go to **`session1-assignments`**:
+### 2. Get the project
 
 ```bash
-git checkout session1-assignments
+git clone <repo-url>
+cd STS-Academy
+git checkout session4
 ```
 
-You will find: the same summarization task (3–4 line summaries) solved twice, once with the Gemini API (cloud-hosted) and once with `qwen2.5-coder:latest` running locally through Ollama (locally-hosted).
-
-### If you want to build a "chat with your PDF" system (RAG)
-
-Go to **`session2`**:
+### 3. Install dependencies
 
 ```bash
-git checkout session2
+uv sync
 ```
 
-You will find: a PDF that is cleaned, split into overlapping chunks, turned into embeddings (OpenRouter), and stored in ChromaDB, plus a script that answers questions about the PDF using a local Ollama model. The answers come only from the PDF.
+This sets up the virtual environment (`.venv`) and installs the required packages defined in `pyproject.toml` and `uv.lock`.
 
-### If you want to build an Advanced Multi-PDF RAG system with a Streamlit GUI
+### 4. Set up your `.env` file
 
-Go to **`session2-assignments`**:
+From the repository root, copy the environment template:
 
 ```bash
-git checkout session2-assignments
+cp .env.example .env
 ```
 
-You will find: an Advanced RAG system handling multiple multi-page PDFs across distinct domains. It features document-level metadata routing, score threshold filtering, dynamic document scope selection, an interactive Streamlit chat GUI, and strict grounded inference using a local Ollama model.
+Fill in the values for the LLM you want to use. Only the values for the chosen provider are required, and the app stops with a clear error at startup if one is missing:
 
-## Branch summary
-
-| Branch | Topic | Needs |
-| :--- | :--- | :--- |
-| `main` | This guide | Nothing |
-| `session1` | Environment setup and Gemini API quickstart | Gemini API key |
-| `session1-assignments` | Summarization: cloud vs. local LLM | Gemini API key, Ollama |
-| `session2` | PDF embeddings, ChromaDB and question answering | OpenRouter API key, Ollama |
-| `session2-assignments` | Multi-PDF Advanced RAG with Streamlit GUI & metadata routing | OpenRouter API key, Ollama |
-
-## Suggested order
-
-If you are new to the course, go through the branches in this order:
-
-1. `session1`: set up your tools and check that everything works.
-2. `session1-assignments`: use a cloud model and a local model on a simple task.
-3. `session2`: combine what you learned into a small RAG project.
-4. `session2-assignments`: scale to Advanced RAG with multi-document routing and an interactive web GUI.
-
-## Seeing all branches
-
-```bash
-git branch -a
+```ini
+LLM_PROVIDER=gemini
+api-key=your-gemini-key
+model=your-gemini-model
+OLLAMA_HOST=http://localhost:11434
+LOCAL_MODEL=your-ollama-model
 ```
 
-To go back to this page at any time:
+Optional settings (defaults shown):
+
+```ini
+APP_NAME=STS Chatbot
+LOG_LEVEL=INFO
+LLM_TIMEOUT=60
+```
+
+Set `LLM_PROVIDER=ollama` to use the local model instead of Gemini. Never commit `.env` files to git.
+
+### 5. Start Ollama and pull the model (local provider only)
+
+Make sure the Ollama daemon is running, then pull the LLM specified in your `LOCAL_MODEL`:
 
 ```bash
-git checkout main
+ollama pull <your-ollama-model>
+```
+
+## Running the project
+
+Run all commands from inside the `src/session4` directory:
+
+```bash
+cd src/session4
+```
+
+### 1. Start the API server
+
+```bash
+uv run python scripts/run_dev.py
+```
+
+- The server runs at `http://127.0.0.1:8000` and reloads automatically when you edit files in `app/`.
+- Startup logs show the chosen LLM provider and model.
+
+### 2. Ask a question
+
+Open the interactive docs at `http://127.0.0.1:8000/docs`, expand `POST /api/v1/chat`, click **Try it out**, and send:
+
+```json
+{"session_id": "user-1", "message": "What is FastAPI?"}
+```
+
+Or from a second terminal:
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/v1/chat \
+  -H "Content-Type: application/json" \
+  -d '{"session_id": "user-1", "message": "What is FastAPI?"}'
+```
+
+The response has this shape:
+
+```json
+{"session_id": "user-1", "answer": "...", "timestamp": "2026-11-08T11:32:37.470930Z"}
+```
+
+### 3. Try the validation
+
+Send a request that breaks the rules, for example an empty message or a `session_id` with spaces:
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/v1/chat \
+  -H "Content-Type: application/json" \
+  -d '{"session_id": "bad id!", "message": ""}'
+```
+
+The API returns a `422` that lists each failing field, and the request still appears in `access.log`.
+
+| Status | Meaning |
+|---|---|
+| `200` | Question answered |
+| `422` | Invalid input (rejected by Pydantic) |
+| `502` | The LLM failed or returned an empty answer |
+
+### 4. Check that the server is alive
+
+```bash
+curl http://127.0.0.1:8000/health
+```
+
+### 5. Read the logs
+
+```bash
+tail -f logs/app.log
+tail -f logs/error.log
+tail -f logs/access.log
+```
+
+The `logs/` folder is created automatically the first time the server starts. To follow a single request across every file, take its ID from the `X-Request-ID` response header (or from any log line) and search for it:
+
+```bash
+grep -h "<request-id>" logs/*.log
 ```
