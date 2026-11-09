@@ -9,7 +9,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 # Root directory of STS-Academy
 # This is where your existing .env file is located.
 PROJECT_ROOT = Path(__file__).resolve().parents[4]
-
+PROJECT_DIR = Path(__file__).resolve().parents[2]
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     # Application settings
     APP_NAME: str = "STS Chatbot API"
     LOG_LEVEL: str = "INFO"
-    LOG_DIR: Path = PROJECT_ROOT / "logs"
+    LOG_DIR: Path = PROJECT_DIR / "logs"
 
     # Database settings
     DATABASE_URL: SecretStr = SecretStr("")
