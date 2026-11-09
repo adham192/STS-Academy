@@ -1,0 +1,25 @@
+# Virtual environment
+.venv/
+venv/
+ENV/
+
+# Environment variables
+.env
+.env.local
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# IDE files
+.vscode/
+.idea/
+EOF
+
+src/session2/chroma_db/
+src/session3/chroma_db/
+src/session3/app.log
+src/session3/pdfs/large_pdf.pdf
+src/session4/logs/
+src/session4-assignments/logs/
