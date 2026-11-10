@@ -9,7 +9,10 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 # Root directory of STS-Academy
 # This is where your existing .env file is located.
 PROJECT_ROOT = Path(__file__).resolve().parents[4]
+
+# The session4-assignments folder itself (where logs/ lives)
 PROJECT_DIR = Path(__file__).resolve().parents[2]
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -27,6 +30,10 @@ class Settings(BaseSettings):
 
     # Database settings
     DATABASE_URL: SecretStr = SecretStr("")
+
+    # Redis cache
+    REDIS_URL: str = "redis://localhost:6379/0"
+    CACHE_TTL_SECONDS: int = 3600
 
     # LLM provider
     LLM_PROVIDER: Literal["gemini", "ollama"] = "gemini"
