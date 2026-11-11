@@ -1,0 +1,14 @@
+# Keep secrets, local environments and unrelated code out of the image
+.env
+.venv
+.git
+.gitignore
+**/__pycache__
+**/*.pyc
+**/logs
+
+# Other sessions are not part of this service
+src/session2
+src/session3
+src/session4
+README.md

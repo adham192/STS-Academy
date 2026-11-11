@@ -1,4 +1,4 @@
-"""Run the API locally with auto-reload:  uv run python scripts/run_dev.py"""
+import os
 import sys
 from pathlib import Path
 
@@ -8,13 +8,13 @@ sys.path.insert(0, str(ROOT))
 import uvicorn  # noqa: E402
 
 if __name__ == "__main__":
-    # log_config=None -> uvicorn keeps OUR logging config instead of its own
+    reload = os.getenv("APP_RELOAD", "true").lower() == "true"
     uvicorn.run(
         "app.main:app",
         app_dir=str(ROOT),
-        host="127.0.0.1",
-        port=8000,
-        reload=True,
-        reload_dirs=[str(ROOT / "app")],
+        host=os.getenv("APP_HOST", "127.0.0.1"),
+        port=int(os.getenv("APP_PORT", "8000")),
+        reload=reload,
+        reload_dirs=[str(ROOT / "app")] if reload else None,
         log_config=None,
     )

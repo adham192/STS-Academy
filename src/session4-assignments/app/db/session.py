@@ -11,7 +11,7 @@ from app.db.base import Base
 logger = logging.getLogger(__name__)
 
 # pool_pre_ping drops dead connections (e.g. after the database container restarts)
-engine = create_engine(settings.DATABASE_URL.get_secret_value(), pool_pre_ping=True)
+engine = create_engine(settings.database_url, pool_pre_ping=True)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
 
 
