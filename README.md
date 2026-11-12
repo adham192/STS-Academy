@@ -13,7 +13,7 @@ Course projects for the STS Academy, one branch per session.
 | `session2-assignments` | Multi-PDF RAG assistant with Streamlit UI, document routing, and quantitative evaluation |
 | `session3` | Speculative RAG assistant with parallel Ollama drafts, Gemini verification, Streamlit chat UI, central logging, and stage-by-stage evaluation against a baseline |
 | `session4` | FastAPI chatbot API with Pydantic input and output validation, per-request logging to separate files, and a switchable LLM (Gemini in the cloud or a local Ollama model) |
-| `session4-assignments` | Extends the session 4 chatbot API with a PostgreSQL database: every question and answer is stored per session and can be listed, read back, and deleted, with a health check that also tests the database |
+| `session4-assignments` | Extends the session 4 chatbot API with a PostgreSQL database running in a Docker container: every question and answer is stored per session and can be listed, read back, and deleted, with a health check that also tests the database |
 
 ## Project structure (`session4` branch)
 
@@ -120,6 +120,7 @@ STS-Academy/
 ├── .env.example                                        # template for environment variables
 ├── .gitignore
 ├── .python-version
+├── docker-compose.yml                                  # runs the PostgreSQL container the API connects to
 ├── pyproject.toml                                      # project dependencies (used by uv)
 ├── uv.lock                                             # exact dependency versions (used by uv)
 └── README.md
@@ -127,7 +128,7 @@ STS-Academy/
 
 ## What session 4 assignments does
 
-This branch builds on the session 4 chatbot API and adds **memory**. Every question and the answer the LLM gave are saved in a **PostgreSQL** database under a `session_id`, so a conversation can be listed, read back later, and deleted. The code is split into layers: routes only handle HTTP, the service holds the logic, and the database and LLM code live in their own modules.
+This branch builds on the session 4 chatbot API and adds **memory**. Every question and the answer the LLM gave are saved in a **PostgreSQL** database under a `session_id`, so a conversation can be listed, read back later, and deleted. The database runs in a **Docker container** started with Docker Compose, so there is nothing to install or configure on your machine apart from Docker. The API runs on your machine and connects to that container. The code is split into layers: routes only handle HTTP, the service holds the logic, and the database and LLM code live in their own modules.
 
 **`main.py`** builds the application:
 
@@ -181,6 +182,34 @@ This branch builds on the session 4 chatbot API and adds **memory**. Every quest
 
 **`core/` and `middleware/`** work as in session 4: settings come from `.env`, and three rotating log files (`app.log`, `error.log`, `access.log`) use the format `timestamp | level | request_id | logger:line | message`. Every request gets an ID, returned in the `X-Request-ID` header. SQL statements are only logged when `LOG_LEVEL=DEBUG`.
 
+### The PostgreSQL container
+
+`docker-compose.yml` defines one service, which runs PostgreSQL:
+
+| Setting | Value | Purpose |
+|---|---|---|
+| Service and container | `postgres` / `chatbot-postgres` | Name of the container |
+| Image | `postgres:18` | Official PostgreSQL image |
+| Credentials | `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` from `.env` | The user, password, and database created on first start |
+| Port | `POSTGRES_PORT` on your machine, forwarded to `5432` in the container | Lets the API (and tools such as pgAdmin) reach the database |
+| Volume | `pgdata` | Keeps the data when the container is stopped or removed |
+| Health check | `pg_isready` | Shows `healthy` once the database accepts connections |
+
+How the API connects to it:
+
+```
+   your machine                                  Docker
+┌───────────────────┐                    ┌─────────────────────┐
+│  FastAPI (uv run) │ ── localhost:5432 ─▶  chatbot-postgres   │
+│  DATABASE_URL     │    (POSTGRES_PORT) │  listens on 5432    │
+└───────────────────┘                    └─────────────────────┘
+```
+
+- **Published port.** The container listens on 5432 internally, and Docker forwards `POSTGRES_PORT` on your machine to it. The API runs on your machine, so it connects to `localhost` on that port, and the port in `DATABASE_URL` must be the same as `POSTGRES_PORT`. If you set `POSTGRES_PORT=5433` (for example because a local PostgreSQL already uses 5432), use `5433` in `DATABASE_URL` too.
+- **Credentials.** The container reads `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_DB` from `.env` and creates that user and database the first time it starts. `DATABASE_URL` must contain the same user, password, and database name, otherwise the API cannot log in.
+- **No manual setup.** The user and the database are created by the container, and the app creates the `chat_messages` table when it starts, so no SQL is needed.
+- **Data survives restarts.** The data lives in the named volume `pgdata`, so `docker compose down` keeps it and `docker compose down -v` deletes it.
+
 ### Endpoints
 
 | Method | Path | What it does | Success |
@@ -205,9 +234,9 @@ This branch builds on the session 4 chatbot API and adds **memory**. Every quest
 ### 1. Requirements
 
 - [uv](https://docs.astral.sh/uv/) (manages virtual environments and Python versions)
+- [Docker](https://docs.docker.com/get-docker/) with Docker Compose (runs the PostgreSQL container, only for `session4-assignments`)
 - A [Google Gemini](https://aistudio.google.com/) API key (if you use `LLM_PROVIDER=gemini`)
 - [Ollama](https://ollama.com/) installed and running locally (if you use `LLM_PROVIDER=ollama`)
-- A running [PostgreSQL](https://www.postgresql.org/) server (only for `session4-assignments`)
 
 Install `uv` if you do not have it:
 
@@ -256,7 +285,7 @@ OLLAMA_HOST=http://localhost:11434
 LOCAL_MODEL=your-ollama-model
 ```
 
-For `session4-assignments`, also set the PostgreSQL connection:
+For `session4-assignments`, also set the PostgreSQL connection. The container is created from the first four values, and the API connects with `DATABASE_URL`, so the user, password, database name, and port must match:
 
 ```ini
 POSTGRES_USER=chatbot
@@ -265,6 +294,8 @@ POSTGRES_DB=chatbot
 POSTGRES_PORT=5432
 DATABASE_URL=postgresql+psycopg://chatbot:your-password@localhost:5432/chatbot
 ```
+
+Two things to watch in the password: characters such as `@`, `/`, or `#` must be URL-encoded in `DATABASE_URL` (`@` becomes `%40`) but stay as they are in `POSTGRES_PASSWORD`, and a `$` in `.env` must be written as `$$`, because Docker Compose treats `$name` as a variable.
 
 Optional settings (defaults shown):
 
@@ -284,20 +315,27 @@ Make sure the Ollama daemon is running, then pull the LLM specified in your `LOC
 ollama pull <your-ollama-model>
 ```
 
-### 6. Create the PostgreSQL database (`session4-assignments` only)
+### 6. Start the PostgreSQL container (`session4-assignments` only)
 
-Create the user and database that match your `DATABASE_URL`, for example:
+From the repository root:
+
+```bash
+docker compose up -d
+docker compose ps
+```
+
+Wait until `chatbot-postgres` shows `healthy`. The user and database from your `.env` are created automatically the first time, and the app creates the `chat_messages` table when it starts.
+
+If you would rather use your own PostgreSQL server instead of Docker, create the user and database that match your `DATABASE_URL`:
 
 ```sql
 CREATE USER chatbot WITH PASSWORD 'your-password';
 CREATE DATABASE chatbot OWNER chatbot;
 ```
 
-You do not need to create the tables. The app creates `chat_messages` automatically when it starts.
-
 ## Running the project
 
-Run all commands from inside the project directory:
+Make sure the PostgreSQL container is running (`docker compose ps`), then run all commands from inside the project directory:
 
 ```bash
 cd src/session4-assignments
@@ -312,7 +350,7 @@ uv run python scripts/run_dev.py
 ```
 
 - The server runs at `http://127.0.0.1:8000` and reloads automatically when you edit files in `app/`.
-- Startup logs show the chosen LLM provider and model, and that the database is ready.
+- Startup logs show the chosen LLM provider and model, and that the database is ready. If the database container is not running, the server stops at startup with a connection error.
 
 ### 2. Ask a question
 
@@ -362,7 +400,24 @@ Delete a conversation (returns `204`, or `404` if it does not exist):
 curl -X DELETE http://127.0.0.1:8000/api/v1/chat/user-1
 ```
 
-### 4. Try the validation
+### 4. Look inside the database
+
+Open a SQL shell in the container (use your `POSTGRES_USER` and `POSTGRES_DB`):
+
+```bash
+docker compose exec postgres psql -U chatbot -d chatbot
+```
+
+Then list the tables and read the saved conversations (type `\q` to quit):
+
+```sql
+\dt
+SELECT id, session_id, question, created_at FROM chat_messages ORDER BY id;
+```
+
+You can also connect from a tool such as pgAdmin or DBeaver, using host `localhost`, port `POSTGRES_PORT`, and your user, password, and database.
+
+### 5. Try the validation
 
 Send a request that breaks the rules, for example an empty message or a `session_id` with spaces:
 
@@ -374,15 +429,15 @@ curl -X POST http://127.0.0.1:8000/api/v1/chat \
 
 The API returns a `422` that lists each failing field, and the request still appears in `access.log`.
 
-### 5. Check that the server is alive
+### 6. Check that the server is alive
 
 ```bash
 curl http://127.0.0.1:8000/health
 ```
 
-On `session4-assignments` this also checks the database and returns `{"status": "ok", "database": "up"}`.
+On `session4-assignments` this also checks the database and returns `{"status": "ok", "database": "up"}`. Stop the container with `docker compose stop postgres` and call it again to see the `503`.
 
-### 6. Read the logs
+### 7. Read the logs
 
 ```bash
 tail -f logs/app.log
@@ -395,3 +450,31 @@ The `logs/` folder is created automatically the first time the server starts. To
 ```bash
 grep -h "<request-id>" logs/*.log
 ```
+
+The database container has its own logs:
+
+```bash
+docker compose logs -f postgres
+```
+
+### 8. Manage the database container
+
+```bash
+docker compose stop postgres    # pause it, keeping the data
+docker compose start postgres   # start it again
+docker compose down             # remove the container, keep the data
+docker compose down -v          # remove the container and delete all the data
+```
+
+PostgreSQL reads `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_DB` only the first time it starts with an empty volume. If you change them in `.env` later, run `docker compose down -v` once so the database is created again with the new values.
+
+### Troubleshooting
+
+| Problem | Likely cause |
+|---|---|
+| `connection refused` when the API starts | The container is not running (`docker compose ps`), or the port in `DATABASE_URL` is not the same as `POSTGRES_PORT`. |
+| `password authentication failed` | The password in `.env` changed after the database was first created. Run `docker compose down -v` and start the container again. |
+| `database "chatbot" does not exist` | `POSTGRES_DB` and the database name in `DATABASE_URL` do not match. |
+| `port is already allocated` or `address already in use` | Another PostgreSQL already uses that port on your machine. Set a different `POSTGRES_PORT` (for example 5433) and use the same port in `DATABASE_URL`. |
+| `chatbot-postgres` is `unhealthy` | Check `docker compose logs postgres`. A missing `POSTGRES_PASSWORD` in `.env` is the usual cause. |
+| `502` on `POST /api/v1/chat` | The LLM failed (wrong key or model, Ollama not reachable, or Gemini is overloaded). The cause is in `error.log`. |
