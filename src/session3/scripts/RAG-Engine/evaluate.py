@@ -1,14 +1,15 @@
 """
-Controlled evaluation of three Speculative RAG subset-construction strategies.
+Evaluation of the Speculative RAG pipeline against a plain-RAG baseline.
 
-Strategies:
-  ranked      - original relevance-ranked adjacent overlapping pairs
-  embedding   - chunk-to-chunk similarity-guided overlapping chains
-  dual_anchor - keep the top question-relevant chunk from each cluster as an
-                anchor, then vary its embedding-nearest companion
+For every question in the ground-truth file the script:
+  1. retrieves the top-k chunks and clusters them with K-Means,
+  2. builds the evidence subsets (embedding-guided overlapping chains),
+  3. writes one draft per subset with the local Ollama model,
+  4. lets Gemini score the drafts (a second Gemini call breaks a tie for the top score),
+  5. runs a plain-RAG baseline once, using all retrieved chunks in one prompt.
 
-The same retrieval result and K-Means labels are reused across all strategies
-for each question. The plain-RAG baseline is run once per question.
+Reported metrics: final accuracy, oracle accuracy (any draft correct), subset hit
+(a subset kept an answer-bearing chunk), retrieval MRR and average seconds.
 """
 import json
 import logging
@@ -47,7 +48,6 @@ RESULTS_PATH.parent.mkdir(parents=True, exist_ok=True)
 
 K = DEFAULT_RETRIEVAL_K
 N_SUBSETS = DEFAULT_N_SUBSETS
-STRATEGIES = ("ranked", "embedding", "dual_anchor")
 SLEEP_BETWEEN_QUESTIONS = 0
 
 
@@ -89,7 +89,7 @@ def matches_item(text, item):
 
 
 def run_drafts_and_verification(question, subsets):
-    """Run the same drafting and verifier stages for one subset strategy."""
+    """Write one draft per subset with Ollama, then verify them with Gemini."""
     with ThreadPoolExecutor(max_workers=len(subsets)) as pool:
         drafts = list(pool.map(lambda subset: draft(question, subset), subsets))
     scores, best, tie_reason, final_answer = verify(question, drafts, subsets)
@@ -107,7 +107,7 @@ def score_one_question(item):
     truth = item["ground_truth"]
     source = item.get("source") or None
 
-    # Retrieval and clustering are performed ONCE, then reused by all strategies.
+    # Retrieval and clustering are performed once per question.
     started = time.perf_counter()
     docs, metas, embeddings, distances = retrieve(
         question, k=K, return_distances=True, source=source
@@ -121,7 +121,6 @@ def score_one_question(item):
             "ground_truth": truth,
             "source": source,
             "status": "no_retrieval",
-            "strategies": {},
         }
 
     labels = cluster(embeddings, n_clusters=DEFAULT_N_CLUSTERS)
@@ -130,45 +129,41 @@ def score_one_question(item):
         0,
     )
 
-    strategy_results = {}
-    for strategy in STRATEGIES:
-        print(f"      Strategy: {strategy}", flush=True)
-        started = time.perf_counter()
-        subsets = build_subsets(
-            docs,
-            labels,
-            n_subsets=N_SUBSETS,
-            distances=distances,
-            embeddings=embeddings,
-            overlap_strategy=strategy,
-        )
-        construction_seconds = time.perf_counter() - started
+    started = time.perf_counter()
+    subsets = build_subsets(
+        docs,
+        labels,
+        n_subsets=N_SUBSETS,
+        distances=distances,
+        embeddings=embeddings,
+    )
+    construction_seconds = time.perf_counter() - started
 
-        started = time.perf_counter()
-        generated = run_drafts_and_verification(question, subsets)
-        generation_and_verification_seconds = time.perf_counter() - started
+    started = time.perf_counter()
+    generated = run_drafts_and_verification(question, subsets)
+    generation_and_verification_seconds = time.perf_counter() - started
 
-        subset_hit = any(matches_item(doc, item) for subset in subsets for doc in subset)
-        oracle = any(matches_item(draft_item["answer"], item)
-                     for draft_item in generated["drafts"])
-        final_correct = matches_item(generated["answer"], item)
+    subset_hit = any(matches_item(doc, item) for subset in subsets for doc in subset)
+    oracle = any(matches_item(draft_item["answer"], item)
+                 for draft_item in generated["drafts"])
+    final_correct = matches_item(generated["answer"], item)
 
-        strategy_results[strategy] = {
-            "answer": generated["answer"],
-            "draft_answers": [d["answer"] for d in generated["drafts"]],
-            "draft_rationales": [d["rationale"] for d in generated["drafts"]],
-            "verifier_scores": generated["scores"],
-            "best_draft_index": generated["best_draft_index"],
-            "verifier_decision": generated["verifier_decision"],
-            "subset_chunk_positions": [
-                [docs.index(doc) + 1 for doc in subset] for subset in subsets
-            ],
-            "subset_hit": subset_hit,
-            "oracle_draft_correct": oracle,
-            "final_correct": final_correct,
-            "subset_construction_seconds": construction_seconds,
-            "draft_and_verification_seconds": generation_and_verification_seconds,
-        }
+    speculative = {
+        "answer": generated["answer"],
+        "draft_answers": [d["answer"] for d in generated["drafts"]],
+        "draft_rationales": [d["rationale"] for d in generated["drafts"]],
+        "verifier_scores": generated["scores"],
+        "best_draft_index": generated["best_draft_index"],
+        "verifier_decision": generated["verifier_decision"],
+        "subset_chunk_positions": [
+            [docs.index(doc) + 1 for doc in subset] for subset in subsets
+        ],
+        "subset_hit": subset_hit,
+        "oracle_draft_correct": oracle,
+        "final_correct": final_correct,
+        "subset_construction_seconds": construction_seconds,
+        "draft_and_verification_seconds": generation_and_verification_seconds,
+    }
 
     # Plain RAG baseline uses the same retrieved top-k chunks and runs only once.
     started = time.perf_counter()
@@ -193,7 +188,7 @@ def score_one_question(item):
                 for label in sorted(set(labels))
             },
         },
-        "strategies": strategy_results,
+        "speculative_rag": speculative,
         "baseline": {
             "answer": baseline_answer,
             "correct": matches_item(baseline_answer, item),
@@ -206,61 +201,51 @@ def summarize(results):
     completed = [r for r in results if r.get("status") == "ok"]
     failed = [r for r in results if r.get("status") != "ok"]
     print("\n" + "=" * 76)
-    print("THREE-STRATEGY SPECULATIVE RAG EVALUATION")
+    print("SPECULATIVE RAG EVALUATION")
     print("=" * 76)
     print(f"Completed: {len(completed)} | Failed/no retrieval: {len(failed)}")
     if not completed:
         print("No completed questions; metrics cannot be calculated.")
         return
 
-    baseline_accuracy = sum(r["baseline"]["correct"] for r in completed) / len(completed)
-    print(f"\nPlain RAG baseline accuracy: {baseline_accuracy:.1%}")
+    n = len(completed)
+    spec = [r["speculative_rag"] for r in completed]
+    accuracy = sum(s["final_correct"] for s in spec) / n
+    oracle = sum(s["oracle_draft_correct"] for s in spec) / n
+    subset_hit = sum(s["subset_hit"] for s in spec) / n
+    mrr = sum(r["retrieval"]["reciprocal_rank"] for r in completed) / n
+    avg_sec = sum(
+        s["subset_construction_seconds"] + s["draft_and_verification_seconds"]
+        for s in spec
+    ) / n
+    baseline_accuracy = sum(r["baseline"]["correct"] for r in completed) / n
+    baseline_sec = sum(r["baseline"]["seconds"] for r in completed) / n
 
-    header = (
-        f"{'Strategy':<14} {'Accuracy':>10} {'Oracle':>10} "
-        f"{'Subset hit':>11} {'MRR':>8} {'Avg sec':>10}"
-    )
+    header = f"{'System':<18} {'Accuracy':>10} {'Avg sec':>10}"
     print("\n" + header)
     print("-" * len(header))
+    print(f"{'Speculative RAG':<18} {accuracy:>9.1%} {avg_sec:>10.1f}")
+    print(f"{'Plain RAG':<18} {baseline_accuracy:>9.1%} {baseline_sec:>10.1f}")
 
-    for strategy in STRATEGIES:
-        rows = [r for r in completed if strategy in r["strategies"]]
-        if not rows:
-            continue
-        acc = sum(r["strategies"][strategy]["final_correct"] for r in rows) / len(rows)
-        oracle = sum(r["strategies"][strategy]["oracle_draft_correct"] for r in rows) / len(rows)
-        subset_hit = sum(r["strategies"][strategy]["subset_hit"] for r in rows) / len(rows)
-        mrr = sum(r["retrieval"]["reciprocal_rank"] for r in rows) / len(rows)
-        avg_sec = sum(
-            r["strategies"][strategy]["subset_construction_seconds"]
-            + r["strategies"][strategy]["draft_and_verification_seconds"]
-            for r in rows
-        ) / len(rows)
-        print(
-            f"{strategy:<14} {acc:>9.1%} {oracle:>9.1%} "
-            f"{subset_hit:>10.1%} {mrr:>8.3f} {avg_sec:>9.1f}"
-        )
+    print(f"\nOracle draft accuracy : {oracle:.1%}")
+    print(f"Subset hit rate       : {subset_hit:.1%}")
+    print(f"Retrieval MRR         : {mrr:.3f}")
 
     print("\nAccuracy by difficulty")
     for level in ("easy", "medium", "hard"):
         rows = [r for r in completed if r.get("level") == level]
         if not rows:
             continue
+        spec_acc = sum(r["speculative_rag"]["final_correct"] for r in rows) / len(rows)
+        base_acc = sum(r["baseline"]["correct"] for r in rows) / len(rows)
         print(f"  {level.title()} ({len(rows)} questions)")
-        for strategy in STRATEGIES:
-            valid = [r for r in rows if strategy in r["strategies"]]
-            if valid:
-                acc = sum(r["strategies"][strategy]["final_correct"] for r in valid) / len(valid)
-                print(f"    {strategy:<12}: {acc:.1%}")
-        print(
-            f"    {'baseline':<12}: "
-            f"{sum(r['baseline']['correct'] for r in rows) / len(rows):.1%}"
-        )
+        print(f"    {'speculative':<12}: {spec_acc:.1%}")
+        print(f"    {'baseline':<12}: {base_acc:.1%}")
 
     print("\nInterpretation notes:")
     print("- Oracle = at least one generated draft matched the ground-truth phrase.")
     print("- Subset hit = at least one subset retained a chunk containing that phrase.")
-    print("- MRR is a shared retrieval metric, so it should be identical across strategies.")
+    print("- MRR measures retrieval only (where the first answer-bearing chunk ranks).")
     print("- Phrase matching is an automatic proxy; inspect saved answers for semantic equivalents.")
 
 
@@ -274,12 +259,13 @@ def evaluate():
             raise ValueError(f"Invalid test item at position {index}: question and ground_truth are required.")
 
     print(f"Loaded {len(test_items)} questions from {EVAL_PATH}")
-    print(f"Strategies: {', '.join(STRATEGIES)}")
+    print("Subset strategy: embedding-guided overlapping chains")
     print(f"Retrieval k={K}; clusters={DEFAULT_N_CLUSTERS}; subsets={N_SUBSETS}")
     print(
-        f"Gemini verification calls: approximately {len(test_items) * len(STRATEGIES)}. "
+        f"Gemini verification calls: {len(test_items)} to {2 * len(test_items)} "
+        "(one per question, plus one more whenever the top score is tied). "
         "At a 13-second minimum interval, pacing alone may take "
-        f"{(len(test_items) * len(STRATEGIES) - 1) * 13 / 60:.1f} minutes."
+        f"{(len(test_items) - 1) * 13 / 60:.1f} to {(2 * len(test_items) - 1) * 13 / 60:.1f} minutes."
     )
 
     build_index()
@@ -309,7 +295,6 @@ def evaluate():
                 "ground_truth": item.get("ground_truth"),
                 "status": "error",
                 "evaluation_error": str(error),
-                "strategies": {},
             })
             error_text = str(error).lower()
             if any(token in error_text for token in (

@@ -10,7 +10,26 @@ from pathlib import Path
 
 import streamlit as st
 
+# Force Streamlit's light theme from inside this file (no config.toml needed).
+# The theme is sent to the browser at the start of each run, so it takes effect on
+# the second run; we trigger that one extra rerun automatically, once per session.
+try:
+    for _key, _val in {
+        "theme.base": "light",
+        "theme.primaryColor": "#4f70ff",
+        "theme.backgroundColor": "#ffffff",
+        "theme.secondaryBackgroundColor": "#eef2ff",
+        "theme.textColor": "#20375f",
+    }.items():
+        st._config.set_option(_key, _val)
+except Exception:  # private API; fall back to the CSS overrides below
+    pass
+
 st.set_page_config(page_title="AI Assistant", page_icon="🤖", layout="wide")
+
+if not st.session_state.get("_theme_applied"):
+    st.session_state["_theme_applied"] = True
+    st.rerun()
 
 APP_DIR = Path(__file__).resolve().parent
 if str(APP_DIR) not in sys.path:
@@ -109,7 +128,7 @@ if "uploader_key" not in ss:
 # --------------------------------------------------------------------------- #
 st.markdown("""
 <style>
-:root { --ink:#1d315b; --muted:#687fae; --blue:#4f70ff; --line:#e3eaff; }
+:root { --ink:#1d315b; --muted:#687fae; --blue:#4f70ff; --line:#e3eaff; color-scheme: light; }
 html, body, [class*="css"], [data-testid="stApp"] { font-family:"Inter","Segoe UI",Arial,sans-serif !important; }
 .stApp,[data-testid="stAppViewContainer"],[data-testid="stMain"],section.main {
   background:#fff !important; color:var(--ink);
@@ -194,6 +213,69 @@ header[data-testid="stHeader"] { background:transparent; }
 [data-testid="stSidebar"] [data-testid="stExpander"] summary { background:transparent!important; color:#20375f!important; }
 [data-testid="stSidebar"] [data-testid="stExpander"] summary *,
 [data-testid="stSidebar"] [data-testid="stExpander"] summary svg { color:#20375f!important; fill:#20375f!important; }
+
+/* ---- "Search in" selectbox (forced light, independent of Streamlit theme) ---- */
+[data-testid="stSelectbox"] [data-baseweb="select"],
+[data-testid="stSelectbox"] [data-baseweb="select"] * {
+  background:transparent !important;
+  background-color:transparent !important;
+  color:#20375f !important;
+  -webkit-text-fill-color:#20375f !important;
+  font-weight:600;
+}
+[data-testid="stSelectbox"] [data-baseweb="select"] > div {
+  background:#eef2ff !important;
+  background-color:#eef2ff !important;
+  border:1px solid #dbe4ff !important;
+  border-radius:12px !important;
+  box-shadow:none !important;
+  outline:none !important;
+}
+[data-testid="stSelectbox"] [data-baseweb="select"] > div:hover,
+[data-testid="stSelectbox"] [data-baseweb="select"] > div:focus-within {
+  border-color:#4f70ff !important;
+  box-shadow:0 0 0 2px #4f70ff22 !important;
+}
+[data-testid="stSelectbox"] [data-baseweb="select"] input { caret-color:#20375f !important; }
+[data-testid="stSelectbox"] [data-baseweb="select"] svg { fill:#20375f !important; color:#20375f !important; }
+
+/* dropdown list (opens in a popover outside the sidebar, so it is styled globally) */
+[data-baseweb="popover"],
+[data-baseweb="popover"] > div,
+[data-baseweb="popover"] [data-baseweb="menu"],
+[data-baseweb="popover"] ul,
+[data-baseweb="popover"] [role="listbox"],
+[data-testid="stSelectboxVirtualDropdown"],
+div[data-baseweb="layer"] > div {
+  background:#f5f8ff !important;
+  background-color:#f5f8ff !important;
+}
+[data-baseweb="popover"] > div {
+  border:1px solid #dbe4ff !important;
+  border-radius:12px !important;
+  box-shadow:0 6px 18px #6480cd22 !important;
+}
+[data-baseweb="popover"] *,
+[data-testid="stSelectboxVirtualDropdown"] * {
+  color:#20375f !important;
+  -webkit-text-fill-color:#20375f !important;
+  font-weight:500;
+}
+[data-baseweb="popover"] li,
+[data-baseweb="popover"] [role="option"],
+[data-testid="stSelectboxVirtualDropdown"] li {
+  background:transparent !important;
+  background-color:transparent !important;
+  border-radius:8px !important;
+}
+[data-baseweb="popover"] li:hover,
+[data-baseweb="popover"] [role="option"]:hover,
+[data-baseweb="popover"] [role="option"][aria-selected="true"],
+[data-testid="stSelectboxVirtualDropdown"] li:hover {
+  background:#dbe4ff !important;
+  background-color:#dbe4ff !important;
+}
+
 .side-heading { color:#61769f; font-size:.9rem; margin:1rem 0 .4rem; font-weight:600; }
 .doc-chip { display:flex; justify-content:space-between; gap:.5rem; font-size:.8rem; padding:.2rem .1rem; }
 .doc-chip span:first-child { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }

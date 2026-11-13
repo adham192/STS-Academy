@@ -95,5 +95,45 @@
         ]
       }
     ]
+  },
+  "41866373fe85": {
+    "title": "How does the Appointments Clause distinguish the appointment",
+    "created": "2026-11-13T15:16:16",
+    "updated": "2026-11-13T15:26:41",
+    "messages": [
+      {
+        "role": "user",
+        "content": "How does the Appointments Clause distinguish the appointment of principal officers from the appointment of inferior officers?"
+      },
+      {
+        "role": "user",
+        "content": "How does the Appointments Clause distinguish the appointment of principal officers from the appointment of inferior officers?"
+      },
+      {
+        "role": "assistant",
+        "content": "The Appointments Clause distinguishes the appointment of principal officers from the appointment of inferior officers by stating that principal officers are selected by the President with the advice and consent of the Senate, while inferior officers Congress may allow to be appointed by the President alone, by the heads of departments, or by the Judiciary.",
+        "sources": [
+          "large_pdf.pdf"
+        ]
+      }
+    ]
+  },
+  "7204e5c0daf9": {
+    "title": "In Saenz v. Roe, how did the Supreme Court use the Fourteent",
+    "created": "2026-11-13T16:05:58",
+    "updated": "2026-11-13T16:10:58",
+    "messages": [
+      {
+        "role": "user",
+        "content": "In Saenz v. Roe, how did the Supreme Court use the Fourteenth Amendment's Privileges or Immunities Clause to protect citizens who had recently moved to a new State?"
+      },
+      {
+        "role": "assistant",
+        "content": "In Saenz v. Roe, the Supreme Court used the Fourteenth Amendment's Privileges or Immunities Clause to protect citizens who had recently moved to a new State by ensuring they were treated the same as other state citizens, including access to the same welfare benefits.",
+        "sources": [
+          "large_pdf.pdf"
+        ]
+      }
+    ]
   }
 }

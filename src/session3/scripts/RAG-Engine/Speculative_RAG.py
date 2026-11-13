@@ -80,6 +80,9 @@ CHROMA_PATH = str(SESSION_DIR / "chroma_db")
 DOCS_DIR = SESSION_DIR / "pdfs"
 DOCS_DIR.mkdir(exist_ok=True)
 
+if not any(DOCS_DIR.glob("*.pdf")):
+    logger.warning("No PDFs found in %s yet. Upload one from the UI or drop it in the folder", DOCS_DIR)
+
 logger.info("Verifier model: %r", VERIFY_MODEL)
 print(f"Verifier model: {VERIFY_MODEL!r}")
 
@@ -149,6 +152,7 @@ def get_embeddings(texts):
 
 
 def file_sha256(path):
+    """Return the SHA-256 hash of a file."""
     digest = hashlib.sha256()
     with open(path, "rb") as f:
         for block in iter(lambda: f.read(1024 * 1024), b""):
@@ -157,7 +161,13 @@ def file_sha256(path):
 
 
 def ingest_pdf(pdf_path, name=None, progress_callback=None):
-    """Chunk, embed and store one PDF in ChromaDB. (Does everything above in one function.)"""
+    """Chunk, embed and store one PDF in ChromaDB.
+
+    Returns (status, chunk_count) where status is "added", "unchanged" or "empty".
+    - Identical file already indexed  -> skipped ("unchanged").
+    - Same file name but new content  -> old chunks are replaced.
+    progress_callback(done, total) is called after each embedded batch.
+    """
     pdf_path = str(pdf_path)
     name = name or os.path.basename(pdf_path)
     file_hash = file_sha256(pdf_path)
@@ -196,7 +206,11 @@ def ingest_pdf(pdf_path, name=None, progress_callback=None):
 
 
 def build_index():
-    """Make sure every PDF in DOCS_DIR is indexed."""
+    """Make sure every PDF in DOCS_DIR is indexed.
+
+    Unchanged PDFs are skipped quickly. If the embedding model changed since the
+    index was built, the whole collection is rebuilt.
+    """
     collection = get_chroma_collection()
     if collection.count() > 0:
         sample = collection.get(limit=1, include=["metadatas"])["metadatas"][0]
@@ -292,8 +306,11 @@ def cluster(embeddings, n_clusters=DEFAULT_N_CLUSTERS):
     """Cluster retrieved chunk embeddings with K-Means."""
     if len(embeddings) == 0:
         return np.array([], dtype=int)
-    n_clusters = max(1, min(n_clusters, len(embeddings))) 
-    kmeans = KMeans(n_clusters=n_clusters, n_init=10, random_state=42) # Divide the 20 retrieved chunks into 2 clusters and make 10 different centroids.
+    n_clusters = max(1, min(n_clusters, len(embeddings)))
+    logger.debug("Clustering %d embeddings into %d clusters", len(embeddings), n_clusters)
+    # n_init=10: K-Means is run 10 times with different starting centroids and
+    # the best result is kept.
+    kmeans = KMeans(n_clusters=n_clusters, n_init=10, random_state=42)
     labels = kmeans.fit_predict(embeddings)
 
     actual_clusters = np.unique(labels)
@@ -306,71 +323,6 @@ def cluster(embeddings, n_clusters=DEFAULT_N_CLUSTERS):
             len(actual_clusters), n_clusters,
         )
     return labels
-
-
-def _make_overlapping_pair_schedule(member_indices, n_subsets):
-    """
-    Build a schedule of up to-2-chunk picks (one per subset) from a single
-    cluster's ranked items.
-
-    Clusters with 2 or more chunks get overlapping adjacent pairs as before.
-    A cluster with 1 chunk gives that single chunk to every subset, and an
-    empty cluster gives nothing; build_subsets() fills the missing slots from
-    the other cluster.
-    """
-    member_indices = list(member_indices)
-    size = len(member_indices)
-    if n_subsets < 1:
-        raise ValueError("n_subsets must be at least 1.")
-
-    # Small clusters: no pair can be formed, return what exists.
-    if size == 0:
-        return [[] for _ in range(n_subsets)]
-    if size == 1:
-        return [[member_indices[0]] for _ in range(n_subsets)]
-
-    # Calculate maximum unique members needed.
-    # Each subset takes 2 chunks, and adjacent pairs share 1 chunk.
-    # formula for N subsets with overlapping adjacent pairs.
-    max_members_to_use = (2 * n_subsets) - 1
-
-    # Slice the list to keep only the top ranked members
-    ranked_members = member_indices[:max_members_to_use]
-    ranked_size = len(ranked_members)
-
-    # Generate all possible adjacent starting points.
-    all_starts = list(range(ranked_size - 1))
-    
-
-    # Determine the starting index for each subset based on how many drafts were requested.
-    if n_subsets > len(all_starts):
-        # if we want more drafts than unique adjacent windows, cycle through them using modulus.
-        starts = [all_starts[i % len(all_starts)] for i in range(n_subsets)]
-    elif n_subsets == 1:
-        starts = [0]
-    elif n_subsets == 2:
-        starts = [0, 1]
-    else:
-        # First two pairs overlap: [0,1] and [1,2]. Spread the remaining pairs
-        # over the remaining high-ranked members without duplicating a pair.
-        starts = [0, 1]
-        remaining = n_subsets - 2
-        candidate_starts = list(range(3, ranked_size - 1))
-        if remaining <= len(candidate_starts):
-            positions = np.linspace(
-                0, len(candidate_starts) - 1, num=remaining
-            ).round().astype(int)
-            starts.extend(candidate_starts[position] for position in positions)
-        else:
-            # Use every adjacent window when the cluster is too small to spread
-            # the requested number of pairs farther apart.
-            starts = all_starts[:n_subsets]
-
-    # Construct and return pairs list.
-    return [
-        [ranked_members[start], ranked_members[start + 1]]
-        for start in starts[:n_subsets]
-    ]
 
 
 def _make_embedding_pair_schedule(
@@ -450,56 +402,26 @@ def _make_embedding_pair_schedule(
 
 
 
-def _make_dual_anchor_pair_schedule(
-    member_indices,
-    embeddings,
-    n_subsets,
-):
-    """
-    Build pairs that all retain the most question-relevant chunk in a cluster.
-
-    The first member is the cluster's top-ranked chunk (smallest retrieval
-    distance). Each subset pairs that anchor with a different chunk, ordered
-    by cosine similarity to the anchor. Thus the anchor is stable while the
-    supporting context varies across drafts.
-    """
-    members = list(member_indices)
-    if not members:
-        return [[] for _ in range(n_subsets)]
-    if len(members) == 1:
-        return [[members[0]] for _ in range(n_subsets)]
-
-    vectors = np.asarray(embeddings, dtype=float)
-    norms = np.linalg.norm(vectors, axis=1, keepdims=True)
-    normalized = vectors / np.maximum(norms, 1e-12)
-
-    anchor = members[0]  # members were sorted by question relevance
-    candidates = members[1:]
-    candidates.sort(
-        key=lambda idx: (
-            -float(np.dot(normalized[anchor], normalized[idx])),
-            members.index(idx),
-        )
-    )
-    pairs = [[anchor, candidate] for candidate in candidates]
-    return [pairs[i % len(pairs)] for i in range(n_subsets)]
-
 def build_subsets(
     docs,
     labels,
     n_subsets=DEFAULT_N_SUBSETS,
     distances=None,
     embeddings=None,
-    overlap_strategy="embedding",
 ):
     """
-    Build four-chunk subsets using two chunks from each K-Means cluster.
+    Build the evidence subsets for the drafts: four chunks per subset, two from
+    each of the two K-Means clusters.
 
-    Strategies: "ranked" preserves the original relevance-ranked adjacent pairs;
-    "embedding" builds a chunk-to-chunk similarity-guided chain; "dual_anchor"
-    keeps each cluster's top question-relevant chunk as an anchor and varies
-    its semantic-neighbor companion across subsets.
+    Each cluster is re-ranked by distance to the question, then a chain of
+    overlapping pairs is built from it ([A, B], [B, C], [C, D], ...). Every next
+    chunk is chosen by embedding similarity to the previous one (70%), with
+    question relevance as a secondary signal (30%). Neighbouring subsets share
+    evidence, while the set of subsets as a whole stays diverse.
     Short clusters are supplemented from the other cluster/global relevance order.
+
+    If there are no more chunks than fit in one subset, a single subset holding
+    all of them is returned (extra drafts would only repeat the same evidence).
     """
     if len(docs) != len(labels):
         raise ValueError("The number of documents must match the number of cluster labels.")
@@ -509,16 +431,16 @@ def build_subsets(
         raise ValueError("n_subsets must be at least 1.")
     if distances is not None and len(distances) != len(docs):
         raise ValueError("The number of retrieval distances must match the number of documents.")
-    if overlap_strategy not in {"embedding", "ranked", "dual_anchor"}:
-        raise ValueError("overlap_strategy must be 'ranked', 'embedding', or 'dual_anchor'.")
-    if overlap_strategy in {"embedding", "dual_anchor"}:
-        if embeddings is None or len(embeddings) != len(docs):
-            raise ValueError(f"{overlap_strategy}-based subsets require one embedding per document.")
-    if len(docs) < CHUNKS_PER_SUBSET:
-        raise ValueError(
-            f"Only {len(docs)} chunks are available; at least {CHUNKS_PER_SUBSET} "
-            "are required to construct a subset."
+    if embeddings is None or len(embeddings) != len(docs):
+        raise ValueError("Embedding-based subsets require one embedding per document.")
+
+    if len(docs) <= CHUNKS_PER_SUBSET:
+        logger.warning(
+            "Only %d chunks were retrieved and one subset holds %d, "
+            "so a single subset with all of them is used.",
+            len(docs), CHUNKS_PER_SUBSET,
         )
+        return [list(docs)]
 
     unique_labels = sorted(set(int(label) for label in labels))
     # Group documents by cluster label, preserving their original retrieval order.
@@ -549,24 +471,12 @@ def build_subsets(
         second_label = None
         second_members = []
 
-    if overlap_strategy == "embedding":
-        first_schedule = _make_embedding_pair_schedule(
-            first_members, embeddings, distances, n_subsets
-        )
-        second_schedule = _make_embedding_pair_schedule(
-            second_members, embeddings, distances, n_subsets
-        )
-    elif overlap_strategy == "dual_anchor":
-        first_schedule = _make_dual_anchor_pair_schedule(
-            first_members, embeddings, n_subsets
-        )
-        second_schedule = _make_dual_anchor_pair_schedule(
-            second_members, embeddings, n_subsets
-        )
-    else:
-        # Original strategy: adjacent chunks in question-relevance order.
-        first_schedule = _make_overlapping_pair_schedule(first_members, n_subsets)
-        second_schedule = _make_overlapping_pair_schedule(second_members, n_subsets)
+    first_schedule = _make_embedding_pair_schedule(
+        first_members, embeddings, distances, n_subsets
+    )
+    second_schedule = _make_embedding_pair_schedule(
+        second_members, embeddings, distances, n_subsets
+    )
 
     # Global relevance order of all chunks (used as a last-resort filler).
     if distances is not None:
@@ -663,6 +573,7 @@ def draft(question, subset):
     """Generate one draft answer + rationale from a subset of documents."""
     docs_text = "\n\n".join(f"[{i}] {d}" for i, d in enumerate(subset, start=1))
     prompt = DRAFT_PROMPT.format(docs=docs_text, question=question)
+    logger.debug("Calling Ollama model %s with %d chunks", DRAFT_MODEL, len(subset))
     res = ollama_client.chat(
         model=DRAFT_MODEL,
         messages=[{"role": "user", "content": prompt}],
@@ -779,13 +690,14 @@ def wait_for_slot():
             raise RuntimeError("Gemini quota is exhausted; verification cannot continue.")
         gap = time.time() - _last_call
         if gap < MIN_INTERVAL:
+            logger.debug("Waiting %.1fs to respect the Gemini rate limit", MIN_INTERVAL - gap)
             if _quota_exhausted.wait(MIN_INTERVAL - gap):
                 raise RuntimeError("Gemini quota is exhausted; verification cannot continue.")
         _last_call = time.time()
 
 
 def _handle_gemini_error(error, attempt, retries, operation):
-    """Handle quota/model errors consistently for scoring and tie-breaking."""
+    """Handle Gemini quota/model errors and back off before the next retry."""
     msg = str(error)
     if "RESOURCE_EXHAUSTED" in msg or "current quota" in msg.lower():
         logger.error("Gemini quota exhausted during %s", operation)
@@ -1018,7 +930,6 @@ def answer_question(
     n_clusters=DEFAULT_N_CLUSTERS,
     history=None,
     source=None,
-    overlap_strategy="ranked",
 ):
     """
     Run the full pipeline. Returns (final_answer, list_of_source_file_names).
@@ -1066,12 +977,6 @@ def answer_question(
             "I'll be able to answer questions about it.",
             [],
         )
-    if len(docs) < CHUNKS_PER_SUBSET:
-        raise ValueError(
-            f"Only {len(docs)} chunks were retrieved. At least {CHUNKS_PER_SUBSET} "
-            "are required to construct a four-chunk subset."
-        )
-
     labels = cluster(embs, n_clusters=n_clusters)
     cluster_sizes = Counter(int(label) for label in labels)
     print(
@@ -1085,16 +990,15 @@ def answer_question(
         n_subsets=n_subsets,
         distances=distances,
         embeddings=embs,
-        overlap_strategy=overlap_strategy,
     )
 
     logger.info(
         "Generating %d drafts with %d chunks per subset using Ollama",
-        len(subsets), CHUNKS_PER_SUBSET,
+        len(subsets), len(subsets[0]),
     )
     print(
         f"  Generating {len(subsets)} drafts with Ollama "
-        f"({CHUNKS_PER_SUBSET} chunks per draft)...",
+        f"({len(subsets[0])} chunks per draft)...",
         flush=True,
     )
     with ThreadPoolExecutor(max_workers=len(subsets)) as pool:
@@ -1138,7 +1042,7 @@ def speculative_rag(
 
 if __name__ == "__main__":
     build_index()
-    logger.info("CLI started")
+    logger.info("Speculative RAG ready")
     print(
         "Speculative RAG ready. Defaults: retrieve 20 chunks, 2 K-Means clusters, "
         "5 overlapping subsets, 4 chunks per subset (2 from each cluster)."
@@ -1151,11 +1055,13 @@ if __name__ == "__main__":
             question = input("\nAsk a question: ").strip()
         except (EOFError, KeyboardInterrupt):
             print("\nGoodbye!")
+            logger.info("Session ended by the user")
             break
         if not question:
             continue
         if question.lower() in {"exit", "quit", "q"}:
             print("Goodbye!")
+            logger.info("Session ended by the user")
             break
         try:
             logger.info("Question received (%d chars)", len(question))
