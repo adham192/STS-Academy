@@ -1,0 +1,93 @@
+name: speculative-rag
+
+services:
+  backend:
+    build:
+      context: .
+      target: backend
+    env_file: .env                      # provider keys/models (api-key, model, OLLAMA_HOST, ...)
+    environment:                        # these override the localhost values from .env
+      DATABASE_URL: ${DOCKER_DATABASE_URL:?set DOCKER_DATABASE_URL in .env}
+      REDIS_URL: ${DOCKER_REDIS_URL:?set DOCKER_REDIS_URL in .env}
+      OLLAMA_HOST: ${DOCKER_OLLAMA_HOST:-http://host.docker.internal:11434}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"   # reach Ollama running on the host (Linux too)
+    ports:
+      - "8000:8000"
+    volumes:
+      - chroma_data:/app/src/session3/chroma_db   # vector index survives rebuilds
+      - pdf_data:/app/src/session3/pdfs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://localhost:8000/health', timeout=4)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 120s                # build_index() may embed PDFs on first start
+    restart: unless-stopped
+    networks: [app-net]
+
+  frontend:
+    build:
+      context: .
+      target: frontend
+    environment:
+      BACKEND_URL: http://backend:8000  # no database/Redis access, no secrets
+    ports:
+      - "8501:8501"
+    volumes:
+      - chat_history:/app/src/session3/JSON-chat-history
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+    networks: [app-net]
+
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB in .env}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"   # host access (psql/GUI) on loopback only
+    volumes:
+      - postgres_data:/var/lib/postgresql          # PostgreSQL 18+ layout (was .../data)
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+    networks: [app-net]
+
+  redis:
+    image: redis:7-alpine
+    # Cache, not source of truth: bounded memory, LRU eviction, light RDB snapshots so a
+    # restart keeps a warm cache. No host port: reachable only inside app-net.
+    command: ["redis-server", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru",
+              "--save", "60", "1", "--appendonly", "no"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+    networks: [app-net]
+
+networks:
+  app-net:
+
+volumes:
+  postgres_data:
+  redis_data:
+  chroma_data:
+  pdf_data:
+  chat_history:

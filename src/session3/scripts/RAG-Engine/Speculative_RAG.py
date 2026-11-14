@@ -26,7 +26,14 @@ SRC_DIR = HERE.parents[3]                   # src/ (holds the shared logging_con
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
-from logging_config import setup_logging  # noqa: E402
+try:
+    from logging_config import setup_logging  # noqa: E402
+except ImportError:  # shared module not on the path (e.g. inside Docker): log to stdout
+    def setup_logging(session_dir):
+        logging.basicConfig(
+            level=logging.INFO,
+            format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+        )
 
 setup_logging(SESSION_DIR)
 logger = logging.getLogger("rag")

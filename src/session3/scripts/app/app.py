@@ -1,6 +1,5 @@
 """AI Assistant: a Streamlit chat UI for the Speculative RAG pipeline."""
 
-import importlib
 import json
 import logging
 import sys
@@ -35,22 +34,26 @@ APP_DIR = Path(__file__).resolve().parent
 if str(APP_DIR) not in sys.path:
     sys.path.insert(0, str(APP_DIR))
 
-RAG_DIR = APP_DIR.parent / "RAG-Engine"   # Speculative_RAG.py now lives here
-if str(RAG_DIR) not in sys.path:
-    sys.path.insert(0, str(RAG_DIR))
-
 HERE = Path(__file__).resolve()
 SESSION_DIR = HERE.parents[2]               # src/session3 (data folders and app.log live here)
 SRC_DIR = HERE.parents[3]                   # src/ (holds the shared logging_config.py)
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
-from logging_config import setup_logging  # noqa: E402
+try:
+    from logging_config import setup_logging  # noqa: E402
+except ImportError:  # shared module not on the path (e.g. inside Docker): log to stdout
+    def setup_logging(session_dir):
+        logging.basicConfig(
+            level=logging.INFO,
+            format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+        )
 
 setup_logging(SESSION_DIR)
 logger = logging.getLogger("app")
 
-BACKEND_MODULE = "Speculative_RAG"
+import api_client  # noqa: E402  (HTTP client for the backend API)
+
 HISTORY_PATH = SESSION_DIR / "JSON-chat-history" / "chat_history.json"
 HISTORY_PATH.parent.mkdir(parents=True, exist_ok=True)
 SETTINGS_PATH = APP_DIR / "settings.json"
@@ -62,15 +65,6 @@ ALL_DOCS = "All documents"
 # --------------------------------------------------------------------------- #
 # Helpers
 # --------------------------------------------------------------------------- #
-@st.cache_resource
-def load_backend():
-    logger.info("Loading RAG backend")
-    module = importlib.import_module(BACKEND_MODULE)
-    module.build_index()  # fast no-op when nothing changed
-    logger.info("RAG backend ready")
-    return module
-
-
 def load_json(path, default):
     try:
         with open(path, encoding="utf-8") as f:
@@ -323,30 +317,18 @@ def settings_dialog():
 # Sidebar
 # --------------------------------------------------------------------------- #
 def ingest_uploads(files):
-    """Save uploaded PDFs into the docs folder and index them in ChromaDB."""
-    try:
-        backend = load_backend()
-    except Exception as exc:
-        logger.exception("Could not start the RAG backend")
-        st.error(f"Could not start the RAG backend: {exc}")
-        return
+    """Send uploaded PDFs to the backend, which saves and indexes them."""
     for uploaded in files:
         name = Path(uploaded.name).name
-        target = backend.DOCS_DIR / name
-        target.write_bytes(uploaded.getbuffer())
-        logger.info("Indexing uploaded PDF %s", name)
-        bar = st.progress(0.0, text=f"Indexing {name}…")
+        logger.info("Uploading PDF %s to the backend", name)
         try:
-            status, chunks = backend.ingest_pdf(
-                target, name,
-                progress_callback=lambda done, total, n=name: bar.progress(done / total, text=f"Indexing {n}…"),
-            )
-        except Exception as exc:
-            logger.exception("Failed to index %s", name)
-            bar.empty()
+            with st.spinner(f"Indexing {name}… (large PDFs can take a few minutes)"):
+                result = api_client.upload_document(name, uploaded.getvalue())
+        except api_client.ApiError as exc:
+            logger.error("Failed to index %s: %s", name, exc)
             st.error(f"Failed to index {name}: {exc}")
             continue
-        bar.empty()
+        status, chunks = result["status"], result["chunks"]
         logger.info("%s indexed: status=%s, chunks=%s", name, status, chunks)
         if status == "added":
             st.success(f"{name}: {chunks} chunks indexed.")
@@ -413,9 +395,10 @@ with st.sidebar:
         ingest_uploads(uploads)
 
     try:
-        indexed_docs = load_backend().list_documents()
-    except Exception:
+        indexed_docs = api_client.list_documents()
+    except api_client.ApiError as exc:
         indexed_docs = {}
+        st.warning(f"Backend unavailable: {exc}")
     if indexed_docs:
         with st.expander(f"Indexed documents ({len(indexed_docs)})", expanded=False):
             for i, (doc_name, n_chunks) in enumerate(indexed_docs.items()):
@@ -425,8 +408,12 @@ with st.sidebar:
                     f'<span>{n_chunks} chunks</span></div>', unsafe_allow_html=True)
                 if cols[1].button("", icon=":material/delete:", key=f"rmdoc_{i}", help=f"Remove {doc_name}"):
                     logger.info("Removing document %s", doc_name)
-                    load_backend().delete_document(doc_name)
-                    st.rerun()
+                    try:
+                        api_client.delete_document(doc_name)
+                    except api_client.ApiError as exc:
+                        st.error(f"Could not remove {doc_name}: {exc}")
+                    else:
+                        st.rerun()
         # ---- search scope: all PDFs or just one ----
         scope_options = [ALL_DOCS] + list(indexed_docs.keys())
         if ss.get("search_scope") not in scope_options:
@@ -454,14 +441,15 @@ st.markdown('<div class="model-badge"><span>🤖</span><span>Speculative RAG</sp
 # --------------------------------------------------------------------------- #
 # Main chat area
 # --------------------------------------------------------------------------- #
-def render_chat_message(role, content, sources=None, row_id=0):
+def render_chat_message(role, content, sources=None, row_id=0, origin=None):
     """Render user messages on the right and assistant messages on the left."""
     with st.container(key=f"chat_row_{role}_{row_id}"):
         avatar = "🔵" if role == "assistant" else None
         with st.chat_message(role, avatar=avatar):
             st.markdown(content)
             if role == "assistant" and sources and ss.settings["show_sources"]:
-                st.caption("Sources · " + " · ".join(map(str, sources)))
+                cached = f" · from {origin}" if origin in ("redis", "postgresql") else ""
+                st.caption("Sources · " + " · ".join(map(str, sources)) + cached)
 
 
 messages = ss.chats.get(ss.chat_id, {}).get("messages", [])
@@ -473,7 +461,8 @@ if not messages:
 
 for message_index, message in enumerate(messages):
     render_chat_message(
-        message["role"], message["content"], message.get("sources"), row_id=message_index
+        message["role"], message["content"], message.get("sources"), row_id=message_index,
+        origin=message.get("origin"),
     )
 
 question = st.chat_input("Type your message here...")
@@ -493,7 +482,6 @@ if question and question.strip():
         with st.container(key=f"chat_row_assistant_{len(messages)}"):
             with st.chat_message("assistant", avatar="🔵"):
                 with st.spinner("Searching your documents…"):
-                    backend = load_backend()
                     # Earlier messages of THIS chat (everything before the new
                     # question) give the pipeline its conversational memory.
                     chat_history = [
@@ -504,19 +492,23 @@ if question and question.strip():
                     # Restrict retrieval to one PDF when the user picked one.
                     selected = ss.get("search_scope")
                     source = selected if selected in indexed_docs else None
-                    answer, sources = backend.answer_question(
+                    reply = api_client.ask(
                         question,
-                        k=int(ss.settings["top_k"]),
-                        n_subsets=int(ss.settings["n_subsets"]),
                         history=chat_history,
-                        source=source,
+                        document=source,
+                        top_k=int(ss.settings["top_k"]),
+                        n_subsets=int(ss.settings["n_subsets"]),
                     )
+                    answer, sources, origin = reply["answer"], reply["documents"], reply["source"]
                 st.markdown(answer)
                 if sources and ss.settings["show_sources"]:
                     st.caption("Sources · " + " · ".join(map(str, sources)))
-        messages.append({"role": "assistant", "content": answer, "sources": sources})
+        messages.append({"role": "assistant", "content": answer, "sources": sources, "origin": origin})
         answered = True
-        logger.info("Answer ready (%d chars, %d sources)", len(answer), len(sources or []))
+        logger.info("Answer ready from %s (%d chars, %d sources)", origin, len(answer), len(sources or []))
+    except api_client.ApiError as exc:
+        logger.error("The backend could not answer: %s", exc)
+        st.error(f"The RAG system could not answer: {exc}")
     except Exception as exc:
         logger.exception("The RAG system could not answer")
         st.error(f"The RAG system could not answer: {exc}")

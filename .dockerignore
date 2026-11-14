@@ -1,0 +1,9 @@
+# Ignore everything, then allow only what the images need. .env never gets in.
+**
+!pyproject.toml
+!uv.lock
+!src/logging_config.py
+!src/session3/scripts
+**/__pycache__
+**/*.pyc
+src/session3/scripts/app/settings.json

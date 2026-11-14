@@ -19,5 +19,32 @@ dependencies = [
     "scikit-learn>=1.9.1",
 ]
 
+[dependency-groups]
+# Docker backend image: everything the engine + API needs
+backend = [
+    "chromadb>=1.5.9",
+    "google-genai>=2.31.0",
+    "numpy>=2.5.4",
+    "ollama>=0.6.3",
+    "pymupdf>=2.0",
+    "python-dotenv>=1.2.4",
+    "requests>=2.34.2",
+    "scikit-learn>=1.9.1",
+    "fastapi",
+    "uvicorn",
+    "python-multipart",
+    "sqlalchemy>=2.0",
+    "psycopg[binary]>=3.2",
+    "redis>=5",
+]
+# Docker frontend image: UI only
+frontend = [
+    "streamlit",
+    "requests>=2.34.2",
+]
+dev = ["pytest"]
+
 [tool.uv]
 package = false
+# Plain `uv sync` on your machine installs all of these, so local runs keep working
+default-groups = ["backend", "frontend", "dev"]
