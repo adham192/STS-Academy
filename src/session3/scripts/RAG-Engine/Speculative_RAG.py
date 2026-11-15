@@ -63,7 +63,7 @@ if missing:
     logger.critical("Missing values in .env: %s", ", ".join(missing))
     raise RuntimeError(f"Missing values in .env: {', '.join(missing)}")
 
-ollama_client = ollama.Client(host=OLLAMA_HOST, timeout=300)
+ollama_client = ollama.Client(host=OLLAMA_HOST, timeout=None)
 gemini_client = genai.Client(
     api_key=GEMINI_API_KEY,
     http_options=types.HttpOptions(

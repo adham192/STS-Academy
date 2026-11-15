@@ -5,7 +5,7 @@ import os
 import requests
 
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000").rstrip("/")
-ASK_TIMEOUT = 600      # the pipeline (5 local drafts + Gemini verification) can be slow
+ASK_TIMEOUT = None      # the pipeline (5 local drafts + Gemini verification) can be slow
 UPLOAD_TIMEOUT = 900   # large PDFs are embedded batch by batch
 QUICK_TIMEOUT = 10
 
